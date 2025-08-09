@@ -1,11 +1,18 @@
 const fs = require('fs');
 const path = require('path');
+const natural = require('natural');
+const DatabaseManager = require('../utils/database');
 
 class FAQHandler {
   constructor() {
     this.faqs = [];
     this.fallbackResponses = [];
+    this.dynamicFAQs = [];
+    this.db = new DatabaseManager();
+    this.stemmer = natural.PorterStemmer;
+    this.tokenizer = new natural.WordTokenizer();
     this.loadFAQs();
+    this.loadDynamicFAQs();
   }
 
   // Load FAQs from JSON file
@@ -23,65 +30,131 @@ class FAQHandler {
     }
   }
 
-  // Reload FAQs (useful for updates without restart)
-  reloadFAQs() {
-    this.loadFAQs();
+  // Load dynamic FAQs from database
+  async loadDynamicFAQs() {
+    try {
+      this.dynamicFAQs = await this.db.getDynamicFAQs();
+      console.log(`✅ Loaded ${this.dynamicFAQs.length} dynamic FAQs from database`);
+    } catch (error) {
+      console.error('❌ Error loading dynamic FAQs:', error.message);
+      this.dynamicFAQs = [];
+    }
   }
 
-  // Find FAQ response using keyword matching
-  findFAQResponse(userInput) {
+  // Reload FAQs (useful for updates without restart)
+  async reloadFAQs() {
+    this.loadFAQs();
+    await this.loadDynamicFAQs();
+  }
+
+  // Add new FAQ dynamically
+  async addFAQ(question, answer, keywords = [], createdBy = null) {
+    try {
+      const faqId = await this.db.addDynamicFAQ(question, answer, keywords, createdBy);
+      await this.loadDynamicFAQs(); // Reload to include new FAQ
+      return faqId;
+    } catch (error) {
+      throw new Error(`Failed to add FAQ: ${error.message}`);
+    }
+  }
+
+  // Enhanced FAQ matching with NLP
+  findFAQResponse(userInput, userId = null) {
     if (!userInput || typeof userInput !== 'string') {
       return null;
     }
 
     const normalizedInput = userInput.toLowerCase().trim();
     
+    // Combine static and dynamic FAQs
+    const allFAQs = [...this.faqs, ...this.dynamicFAQs];
+    
     // Direct question match
-    const directMatch = this.faqs.find(faq => 
+    const directMatch = allFAQs.find(faq => 
       faq.question.toLowerCase() === normalizedInput
     );
     
     if (directMatch) {
+      // Log successful match
+      if (userId) {
+        this.db.logFAQQuery(userId, userInput, directMatch.id, 'direct', 1.0);
+      }
       return {
         ...directMatch,
-        matchType: 'direct'
+        matchType: 'direct',
+        confidence: 1.0
       };
     }
 
-    // Keyword matching with scoring
-    const matches = this.faqs.map(faq => {
-      let score = 0;
-      const keywords = faq.keywords || [];
+    // Enhanced NLP matching
+    const nlpMatches = this.performNLPMatching(userInput, allFAQs);
+    
+    if (nlpMatches.length > 0 && nlpMatches[0].confidence >= 0.6) {
+      const bestMatch = nlpMatches[0];
       
-      for (const keyword of keywords) {
-        if (normalizedInput.includes(keyword.toLowerCase())) {
-          // Exact keyword match gets higher score
-          if (normalizedInput === keyword.toLowerCase()) {
-            score += 10;
-          } else {
-            score += 5;
-          }
-        }
+      // Log successful match
+      if (userId) {
+        this.db.logFAQQuery(userId, userInput, bestMatch.id, bestMatch.matchType, bestMatch.confidence);
       }
+      
+      return bestMatch;
+    }
 
-      // Check if any words from the question appear in user input
-      const questionWords = faq.question.toLowerCase().split(' ');
-      for (const word of questionWords) {
-        if (word.length > 3 && normalizedInput.includes(word)) {
-          score += 2;
-        }
-      }
-
-      return { ...faq, score, matchType: 'keyword' };
-    }).filter(faq => faq.score > 0)
-      .sort((a, b) => b.score - a.score);
-
-    // Return best match if score is high enough
-    if (matches.length > 0 && matches[0].score >= 5) {
-      return matches[0];
+    // Log failed match
+    if (userId) {
+      this.db.logFAQQuery(userId, userInput, null, 'no_match', 0);
     }
 
     return null;
+  }
+
+  // NLP-based matching using Natural library
+  performNLPMatching(userInput, faqs) {
+    const inputTokens = this.tokenizer.tokenize(userInput.toLowerCase());
+    const inputStems = inputTokens.map(token => this.stemmer.stem(token));
+    
+    const matches = faqs.map(faq => {
+      let confidence = 0;
+      
+      // Keyword matching with stemming
+      const keywords = faq.keywords || [];
+      for (const keyword of keywords) {
+        const keywordTokens = this.tokenizer.tokenize(keyword.toLowerCase());
+        const keywordStems = keywordTokens.map(token => this.stemmer.stem(token));
+        
+        for (const stem of keywordStems) {
+          if (inputStems.includes(stem)) {
+            confidence += 0.3;
+          }
+        }
+      }
+      
+      // Question similarity using Jaro-Winkler distance
+      const questionSimilarity = natural.JaroWinklerDistance(
+        userInput.toLowerCase(), 
+        faq.question.toLowerCase()
+      );
+      confidence += questionSimilarity * 0.5;
+      
+      // Answer keywords matching
+      const answerTokens = this.tokenizer.tokenize(faq.answer.toLowerCase());
+      const answerStems = answerTokens.map(token => this.stemmer.stem(token));
+      
+      const commonStems = inputStems.filter(stem => answerStems.includes(stem));
+      confidence += (commonStems.length / Math.max(inputStems.length, 1)) * 0.2;
+      
+      // Ensure confidence doesn't exceed 1.0
+      confidence = Math.min(confidence, 1.0);
+      
+      return {
+        ...faq,
+        confidence,
+        matchType: 'nlp'
+      };
+    }).filter(faq => faq.confidence > 0)
+      .sort((a, b) => b.confidence - a.confidence);
+
+    return matches;
   }
 
   // Get all FAQs for display
