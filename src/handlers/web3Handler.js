@@ -1,22 +1,41 @@
 const axios = require('axios');
+const NodeCache = require('node-cache');
+const { loggers, logAPICall, createTimer } = require('../utils/logger');
 
 class Web3Handler {
     constructor() {
         this.coinGeckoBaseURL = 'https://api.coingecko.com/api/v3';
-        this.priceCache = new Map();
+        // Enhanced caching with node-cache
+        this.cache = new NodeCache({ 
+            stdTTL: 300, // 5 minutes default
+            checkperiod: 60, // Check for expired keys every minute
+            useClones: false
+        });
         this.cacheTimeout = 5 * 60 * 1000; // 5 minutes cache
+        
+        // Legacy cache for backward compatibility
+        this.priceCache = new Map();
+        
+        loggers.web3.info('Web3Handler initialized', {
+            coinGeckoBaseURL: this.coinGeckoBaseURL,
+            cacheTimeout: this.cacheTimeout
+        });
     }
 
     // Get cryptocurrency price
     async getCryptoPrice(symbol) {
+        const timer = createTimer(`getCryptoPrice_${symbol}`);
+        
         try {
             const normalizedSymbol = symbol.toLowerCase();
             const cacheKey = `price_${normalizedSymbol}`;
 
-            // Check cache first
-            const cached = this.priceCache.get(cacheKey);
-            if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-                return cached.data;
+            // Check enhanced cache first
+            const cached = this.cache.get(cacheKey);
+            if (cached) {
+                loggers.web3.debug('Price retrieved from cache', { symbol: normalizedSymbol, cacheKey });
+                timer.log('web3');
+                return cached;
             }
 
             // Map common symbols to CoinGecko IDs
@@ -38,8 +57,11 @@ class Web3Handler {
 
             const coinId = symbolMap[normalizedSymbol] || normalizedSymbol;
 
+            const endpoint = '/simple/price';
+            const requestStart = Date.now();
+            
             const response = await axios.get(
-                `${this.coinGeckoBaseURL}/simple/price`,
+                `${this.coinGeckoBaseURL}${endpoint}`,
                 {
                     params: {
                         ids: coinId,
@@ -51,9 +73,12 @@ class Web3Handler {
                     timeout: 10000
                 }
             );
+            
+            const responseTime = Date.now() - requestStart;
+            logAPICall('CoinGecko', endpoint, responseTime, true);
 
             const data = response.data[coinId];
-            if (!data) {
+            if (!data || Object.keys(response.data).length === 0) {
                 throw new Error(`Cryptocurrency '${symbol}' not found`);
             }
 
@@ -67,18 +92,39 @@ class Web3Handler {
                 timestamp: Date.now()
             };
 
-            // Cache the result
+            // Cache with enhanced cache
+            this.cache.set(cacheKey, result);
+            
+            // Also update legacy cache for backward compatibility
             this.priceCache.set(cacheKey, {
                 data: result,
                 timestamp: Date.now()
             });
-
+            
+            loggers.web3.info('Price fetched successfully', {
+                symbol: normalizedSymbol,
+                price: result.price,
+                change24h: result.change24h
+            });
+            
+            timer.log('web3');
             return result;
 
         } catch (error) {
-            console.error(`❌ Error fetching price for ${symbol}:`, error.message);
+            const responseTime = Date.now() - (timer.end() - timer.end());
+            logAPICall('CoinGecko', '/simple/price', responseTime, false, error);
+            
+            loggers.web3.error('Error fetching cryptocurrency price', {
+                symbol,
+                error: error.message,
+                status: error.response?.status,
+                code: error.code
+            });
 
-            if (error.response?.status === 429) {
+            // Re-throw specific errors we already handled
+            if (error.message && error.message.includes('not found')) {
+                throw error;
+            } else if (error.response?.status === 429) {
                 throw new Error('Rate limit exceeded. Please try again in a moment.');
             } else if (error.response?.status === 404) {
                 throw new Error(`Cryptocurrency '${symbol}' not found. Try using symbols like BTC, ETH, ADA, SOL.`);
@@ -109,12 +155,16 @@ class Web3Handler {
 
     // Get trending cryptocurrencies
     async getTrendingCryptos() {
+        const timer = createTimer('getTrendingCryptos');
+        
         try {
             const cacheKey = 'trending';
-            const cached = this.priceCache.get(cacheKey);
+            const cached = this.cache.get(cacheKey);
 
-            if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-                return cached.data;
+            if (cached) {
+                loggers.web3.debug('Trending data retrieved from cache');
+                timer.log('web3');
+                return cached;
             }
 
             const response = await axios.get(
@@ -129,28 +179,45 @@ class Web3Handler {
                 id: coin.item.id
             }));
 
-            // Cache result
+            // Cache with enhanced cache
+            this.cache.set(cacheKey, trending);
+            
+            // Legacy cache for backward compatibility
             this.priceCache.set(cacheKey, {
                 data: trending,
                 timestamp: Date.now()
             });
-
+            
+            loggers.web3.info('Trending cryptocurrencies fetched', {
+                count: trending.length,
+                topCoin: trending[0]?.name
+            });
+            
+            timer.log('web3');
             return trending;
 
         } catch (error) {
-            console.error('❌ Error fetching trending cryptos:', error.message);
+            logAPICall('CoinGecko', '/search/trending', timer.end(), false, error);
+            loggers.web3.error('Error fetching trending cryptocurrencies', {
+                error: error.message,
+                status: error.response?.status
+            });
             throw new Error('Unable to fetch trending cryptocurrencies at the moment.');
         }
     }
 
     // Get market data
     async getMarketData() {
+        const timer = createTimer('getMarketData');
+        
         try {
             const cacheKey = 'market_data';
-            const cached = this.priceCache.get(cacheKey);
+            const cached = this.cache.get(cacheKey);
 
-            if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-                return cached.data;
+            if (cached) {
+                loggers.web3.debug('Market data retrieved from cache');
+                timer.log('web3');
+                return cached;
             }
 
             const response = await axios.get(
@@ -168,16 +235,29 @@ class Web3Handler {
                 ethDominance: globalData.market_cap_percentage.eth
             };
 
-            // Cache result
+            // Cache with enhanced cache
+            this.cache.set(cacheKey, result);
+            
+            // Legacy cache for backward compatibility
             this.priceCache.set(cacheKey, {
                 data: result,
                 timestamp: Date.now()
             });
-
+            
+            loggers.web3.info('Market data fetched successfully', {
+                totalMarketCap: result.totalMarketCap,
+                btcDominance: result.btcDominance
+            });
+            
+            timer.log('web3');
             return result;
 
         } catch (error) {
-            console.error('❌ Error fetching market data:', error.message);
+            logAPICall('CoinGecko', '/global', timer.end(), false, error);
+            loggers.web3.error('Error fetching market data', {
+                error: error.message,
+                status: error.response?.status
+            });
             throw new Error('Unable to fetch market data at the moment.');
         }
     }
@@ -302,8 +382,23 @@ _Data from CoinGecko_`;
 
     // Clear cache (useful for testing or manual refresh)
     clearCache() {
+        this.cache.flushAll();
         this.priceCache.clear();
+        loggers.web3.info('Web3 cache cleared');
         console.log('✅ Web3 cache cleared');
+    }
+    
+    // Get cache statistics
+    getCacheStats() {
+        const stats = this.cache.getStats();
+        loggers.web3.info('Cache statistics', stats);
+        return {
+            keys: this.cache.keys().length,
+            hits: stats.hits,
+            misses: stats.misses,
+            ksize: stats.ksize,
+            vsize: stats.vsize
+        };
     }
 }
 

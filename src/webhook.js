@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const TelegramBot = require('node-telegram-bot-api');
 const config = require('./config/config');
 const {
@@ -14,6 +15,7 @@ const MessageAnalyzer = require('./utils/messageAnalyzer');
 const FAQHandler = require('./handlers/faqHandler');
 const Web3Handler = require('./handlers/web3Handler');
 const AnalyticsHandler = require('./handlers/analyticsHandler');
+const { loggers, logUserInteraction, logError } = require('./utils/logger');
 
 // Environment variables for webhook
 const PORT = process.env.PORT || 3000;
@@ -22,7 +24,39 @@ const WEBHOOK_PATH = `/webhook/${config.telegram.botToken}`;
 
 // Initialize Express app
 const app = express();
-app.use(express.json());
+
+// Rate limiting for webhook endpoints
+const webhookLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: {
+        error: 'Too many requests from this IP, please try again later.'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+        loggers.webhook.warn('Rate limit exceeded', {
+            ip: req.ip,
+            userAgent: req.get('User-Agent')
+        });
+        res.status(429).json({
+            error: 'Too many requests from this IP, please try again later.'
+        });
+    }
+});
+
+// API rate limiting for analytics endpoints
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 50, // Limit each IP to 50 requests per windowMs
+    message: {
+        error: 'Too many API requests, please try again later.'
+    }
+});
+
+app.use(express.json({ limit: '10mb' }));
+app.use('/webhook', webhookLimiter);
+app.use('/api', apiLimiter);
 
 // Initialize bot with webhook
 const bot = new TelegramBot(config.telegram.botToken);
