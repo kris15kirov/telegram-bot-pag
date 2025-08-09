@@ -1,0 +1,57 @@
+{
+  "faqs": [
+    {
+      "id": "defi_explanation",
+      "keywords": ["defi", "decentralized finance", "what is defi"],
+      "question": "What is DeFi?",
+      "answer": "DeFi (Decentralized Finance) refers to a blockchain-based form of finance that does not rely on central financial intermediaries such as brokerages, exchanges, or banks. Instead, it utilizes smart contracts on blockchains, primarily Ethereum. DeFi platforms allow people to lend or borrow funds, trade cryptocurrencies, and earn interest without traditional banking systems."
+    },
+    {
+      "id": "nft_explanation",
+      "keywords": ["nft", "non-fungible token", "what is nft", "digital art"],
+      "question": "What is an NFT?",
+      "answer": "NFT stands for Non-Fungible Token. It's a unique digital certificate stored on a blockchain that proves ownership of a specific digital item, such as artwork, music, videos, or virtual real estate. Unlike cryptocurrencies, each NFT is unique and cannot be exchanged on a one-to-one basis with another NFT."
+    },
+    {
+      "id": "blockchain_explanation",
+      "keywords": ["blockchain", "what is blockchain", "distributed ledger"],
+      "question": "What is Blockchain?",
+      "answer": "Blockchain is a distributed ledger technology that maintains a continuously growing list of records (blocks) that are linked and secured using cryptography. Each block contains a cryptographic hash of the previous block, a timestamp, and transaction data. This creates an immutable record that is transparent and decentralized."
+    },
+    {
+      "id": "wallet_security",
+      "keywords": ["wallet security", "secure wallet", "protect crypto", "private keys"],
+      "question": "How do I keep my crypto wallet secure?",
+      "answer": "To keep your crypto wallet secure: 1) Never share your private keys or seed phrase, 2) Use hardware wallets for large amounts, 3) Enable 2FA when possible, 4) Keep software updated, 5) Use reputable wallet providers, 6) Double-check addresses before sending, 7) Be wary of phishing attempts, and 8) Consider using multi-signature wallets for added security."
+    },
+    {
+      "id": "gas_fees",
+      "keywords": ["gas fees", "ethereum fees", "transaction costs", "gas price"],
+      "question": "What are gas fees?",
+      "answer": "Gas fees are transaction costs on the Ethereum network (and other blockchains). They compensate miners/validators for the computational energy required to process transactions. Gas fees vary based on network congestion - during high traffic, fees increase. You can often reduce costs by timing transactions during low-traffic periods or using Layer 2 solutions."
+    },
+    {
+      "id": "staking_rewards",
+      "keywords": ["staking", "proof of stake", "staking rewards", "passive income"],
+      "question": "What is cryptocurrency staking?",
+      "answer": "Cryptocurrency staking involves holding and locking up tokens in a wallet to support network operations on proof-of-stake blockchains. In return, you earn staking rewards (typically 4-12% annually). Staking helps secure the network and validates transactions. Popular staking cryptocurrencies include Ethereum 2.0, Cardano, Solana, and Polkadot."
+    },
+    {
+      "id": "smart_contracts",
+      "keywords": ["smart contracts", "automated contracts", "ethereum contracts"],
+      "question": "What are smart contracts?",
+      "answer": "Smart contracts are self-executing contracts with terms directly written into code. They automatically execute when predetermined conditions are met, without need for intermediaries. Smart contracts run on blockchain platforms like Ethereum and enable decentralized applications (DApps), DeFi protocols, and automated business processes."
+    },
+    {
+      "id": "yield_farming",
+      "keywords": ["yield farming", "liquidity mining", "defi yield", "liquidity pools"],
+      "question": "What is yield farming?",
+      "answer": "Yield farming (or liquidity mining) is a DeFi strategy where users provide liquidity to decentralized exchanges or lending platforms in exchange for rewards. Users deposit tokens into liquidity pools and earn fees from trades, plus additional token rewards. While potentially profitable, yield farming carries risks including impermanent loss and smart contract vulnerabilities."
+    }
+  ],
+  "fallback_responses": [
+    "I'm not sure about that specific question. Could you try rephrasing it or select from our menu options?",
+    "That's a great question! While I don't have a specific answer, you might want to check our FAQ section or contact our team for detailed assistance.",
+    "I couldn't find an exact match for your question. Try using keywords like 'DeFi', 'NFT', 'blockchain', or 'staking' for better results."
+  ]
+}

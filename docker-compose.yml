@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  web3-bot:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    env_file:
+      - .env
+    volumes:
+      - ./src/logs:/app/src/logs
+    restart: unless-stopped
+    command: npm run webhook
+
+  bot-polling:
+    build: .
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - .env
+    volumes:
+      - ./src/logs:/app/src/logs
+    restart: unless-stopped
+    command: npm run dev
+    profiles:
+      - dev

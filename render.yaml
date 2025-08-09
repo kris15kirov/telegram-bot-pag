@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: web3-telegram-bot
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run webhook
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: ACTION_GROUP_CHAT_ID
+        sync: false
+      - key: ADMIN_USER_IDS
+        sync: false
+      - key: WEBHOOK_URL
+        sync: false
+      - key: ANALYTICS_API_KEY
+        sync: false
+    autoDeploy: false
