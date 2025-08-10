@@ -11,12 +11,20 @@ class FAQHandler {
     this.projectReferences = {};
     this.confidenceThreshold = 0.9; // 90% confidence threshold
     this.jaroWinkler = natural.JaroWinklerDistance;
-    this.loadFAQs();
+    this.initialized = false;
+    // Don't call loadFAQs in constructor - let it be called explicitly
+  }
+
+  async initialize() {
+    if (!this.initialized) {
+      await this.loadFAQs();
+      this.initialized = true;
+    }
   }
 
   async loadFAQs() {
     try {
-      const faqPath = path.join(__dirname, '../data/faq.json');
+      const faqPath = path.resolve(__dirname, '../data/faq.json');
       const faqData = await fs.readFile(faqPath, 'utf8');
       const parsed = JSON.parse(faqData);
 
@@ -25,14 +33,57 @@ class FAQHandler {
       this.projectReferences = parsed.project_references || {};
 
       logger.info(`FAQ data loaded: ${this.faqs.length} FAQs available`);
+      return parsed;
     } catch (error) {
-      logger.error('Error loading FAQ data:', error.message);
-      throw new Error('Failed to load FAQ data');
+      logger.error(`Failed to load FAQ data from ${path.resolve(__dirname, '../data/faq.json')}: ${error.message}`);
+
+      // Fallback FAQ data to ensure bot remains functional
+      this.faqs = [
+        {
+          id: 'defi_explanation',
+          keywords: ['defi', 'decentralized finance', 'finance', 'lending', 'borrowing'],
+          question: 'What is DeFi?',
+          answer: 'Decentralized Finance (DeFi) uses blockchain technology to provide financial services without intermediaries. Protocols like Aave (lending) and Uniswap (trading), audited by Pashov Audit Group, enable users to lend, borrow, and trade assets directly on-chain.'
+        },
+        {
+          id: 'audit_importance',
+          keywords: ['audit', 'security', 'vulnerability', 'smart contract'],
+          question: 'Why are smart contract audits important?',
+          answer: 'Smart contract audits identify security vulnerabilities before deployment. Pashov Audit Group has audited over 150 protocols including Sushi, Ethena, and LayerZero, securing billions in user funds.'
+        },
+        {
+          id: 'web3_security',
+          keywords: ['security', 'web3', 'blockchain', 'protection'],
+          question: 'How can I stay secure in Web3?',
+          answer: 'Use audited protocols, verify contract addresses, and never share private keys. Pashov Audit Group recommends only interacting with audited protocols like Uniswap, Aave, and LayerZero.'
+        }
+      ];
+
+      this.fallbackResponses = [
+        'I couldn\'t find a specific answer to your question. Please select an option from the menu or type \'help\' for assistance.',
+        'That\'s an interesting question. For detailed information, please contact Pashov Audit Group support.',
+        'I don\'t have specific information on that topic. Try asking about DeFi, audits, or Web3 security.'
+      ];
+
+      this.projectReferences = {
+        defi: ['Aave', 'Uniswap'],
+        audit: ['Sushi', 'Ethena'],
+        security: ['LayerZero', 'Ambire']
+      };
+
+      logger.info(`Using fallback FAQ data: ${this.faqs.length} FAQs available`);
+      return {
+        faqs: this.faqs,
+        fallback_responses: this.fallbackResponses,
+        project_references: this.projectReferences
+      };
     }
   }
 
   async findBestMatch(userQuestion) {
     try {
+      await this.initialize();
+
       if (!userQuestion || userQuestion.trim().length === 0) {
         return this.getRandomFallback();
       }
@@ -162,6 +213,8 @@ class FAQHandler {
 
   async addFAQ(question, answer, keywords = []) {
     try {
+      await this.initialize();
+
       const newFAQ = {
         id: `faq_${Date.now()}`,
         keywords: keywords.length > 0 ? keywords : this.extractKeywords(question),
@@ -213,6 +266,8 @@ class FAQHandler {
 
   async listFAQs() {
     try {
+      await this.initialize();
+
       const faqList = this.faqs.map((faq, index) => {
         const projectRef = this.getProjectReference(faq);
         return `${index + 1}. ${faq.question}${projectRef ? ` (${projectRef})` : ''}`;
@@ -247,6 +302,8 @@ class FAQHandler {
 
   async handleFAQCommand(command, args) {
     try {
+      await this.initialize();
+
       switch (command) {
         case 'addfaq':
           if (args.length < 2) {
@@ -311,6 +368,8 @@ class FAQHandler {
 
   async processUserQuestion(userQuestion, userId) {
     try {
+      await this.initialize();
+
       const match = await this.findBestMatch(userQuestion);
 
       if (match && match.faq) {
