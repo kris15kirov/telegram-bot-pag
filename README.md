@@ -58,7 +58,12 @@ A production-ready Telegram bot for Web3 businesses, powered by Pashov Audit Gro
    # Edit .env with your configuration
    ```
 
-4. **Start the bot**
+4. **Test bot connection**
+   ```bash
+   node test-bot.js
+   ```
+
+5. **Start the bot**
    ```bash
    # Development (polling)
    npm run dev
@@ -66,6 +71,18 @@ A production-ready Telegram bot for Web3 businesses, powered by Pashov Audit Gro
    # Production (webhook)
    npm run webhook
    ```
+
+### Quick Testing Guide
+
+For detailed testing instructions, see [SETUP_INSTRUCTIONS.md](./SETUP_INSTRUCTIONS.md).
+
+**Basic Test Flow:**
+1. Get bot token from @BotFather
+2. Get your user ID from @userinfobot
+3. Update `.env` file
+4. Run `node test-bot.js` to verify connection
+5. Start bot with `npm run dev`
+6. Message your bot on Telegram and send `/start`
 
 ## Configuration
 
@@ -196,6 +213,8 @@ telegram-bot-pag/
 │   │   └── logger.js        # Logging system
 │   └── logs/                # Application logs
 ├── tests/                   # Test files
+├── test-bot.js              # Bot connection test script
+├── SETUP_INSTRUCTIONS.md    # Detailed setup guide
 ├── Dockerfile              # Docker configuration
 ├── docker-compose.yml      # Docker Compose setup
 ├── render.yaml             # Render deployment
