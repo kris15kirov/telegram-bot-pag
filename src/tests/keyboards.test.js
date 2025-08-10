@@ -334,14 +334,18 @@ describe('KeyboardManager', () => {
       const responses = [
         keyboardManager.getKeyboardResponseMessage('Urgent Request'),
         keyboardManager.getKeyboardResponseMessage('Audit Request'),
-        keyboardManager.getKeyboardResponseMessage('Web3 FAQs'),
-        keyboardManager.getKeyboardResponseMessage('Contact Support')
+        keyboardManager.getKeyboardResponseMessage('Web3 FAQs')
       ];
 
       // Check that responses reference audited projects
       responses.forEach(response => {
         expect(response).toMatch(/(Uniswap|Aave|LayerZero|Ethena|Sushi|Ambire)/);
       });
+
+      // Check that Contact Support response contains Pashov Audit Group branding
+      const contactResponse = keyboardManager.getKeyboardResponseMessage('Contact Support');
+      expect(contactResponse).toContain('Pashov Audit Group');
+      expect(contactResponse).toContain('@pashovkrum');
     });
   });
 

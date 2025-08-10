@@ -1,12 +1,90 @@
 const FAQHandler = require('../handlers/faqHandler');
 const path = require('path');
 
+// Mock path
+jest.mock('path', () => ({
+  join: jest.fn((...args) => args.join('/')),
+  dirname: jest.fn((path) => path.split('/').slice(0, -1).join('/')),
+  resolve: jest.fn((...args) => args.join('/'))
+}));
+
 // Mock fs.promises
 jest.mock('fs', () => ({
   promises: {
     readFile: jest.fn(),
     writeFile: jest.fn()
+  },
+  existsSync: jest.fn(() => true),
+  mkdirSync: jest.fn()
+}));
+
+// Mock config to prevent process.exit
+jest.mock('../config/config', () => ({
+  telegram: {
+    botToken: 'test-token',
+    actionGroupChatId: 'test-group',
+    adminUserIds: [123456789],
+    webhookUrl: 'https://test.com',
+    port: 3000
+  },
+  bot: {
+    name: 'Test Bot',
+    responseDelay: 1000,
+    description: 'Test description'
+  },
+  web3: {
+    moralisApiKey: 'test-moralis-key',
+    etherscanApiKey: 'test-etherscan-key',
+    coingeckoBaseUrl: 'https://api.coingecko.com/api/v3',
+    cacheTtl: 300
+  },
+  keywords: {
+    urgent: ['urgent'],
+    media: ['media'],
+    audit: ['audit']
+  },
+  auditedProjects: {
+    dex: ['Uniswap', 'Sushi'],
+    lending: ['Aave'],
+    stablecoin: ['Ethena'],
+    others: ['LayerZero', 'Ambire']
+  },
+  database: {
+    path: 'test.db',
+    logsPath: 'test.log'
   }
+}));
+
+// Mock winston logger
+jest.mock('winston', () => ({
+  createLogger: jest.fn(() => ({
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+    add: jest.fn()
+  })),
+  format: {
+    combine: jest.fn(),
+    timestamp: jest.fn(),
+    errors: jest.fn(),
+    json: jest.fn(),
+    simple: jest.fn(),
+    colorize: jest.fn(),
+    printf: jest.fn()
+  },
+  transports: {
+    File: jest.fn(),
+    Console: jest.fn()
+  }
+}));
+
+// Mock logger
+jest.mock('../utils/logger', () => ({
+  error: jest.fn(),
+  info: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn()
 }));
 
 const fs = require('fs').promises;
@@ -39,9 +117,21 @@ describe('FAQHandler', () => {
   };
 
   beforeEach(async () => {
+    // Reset mocks
+    jest.clearAllMocks();
+
+    // Mock fs.readFile to return the mock data
     fs.readFile.mockResolvedValue(JSON.stringify(mockFAQData));
+
+    // Create a new handler instance
     faqHandler = new FAQHandler();
+
+    // Load FAQs
     await faqHandler.loadFAQs();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   afterEach(() => {
@@ -266,8 +356,5 @@ describe('FAQHandler', () => {
       expect(faqHandler.isStopWord('is')).toBe(true);
       expect(faqHandler.isStopWord('blockchain')).toBe(false);
     });
-  });
-});
-expect(hasWeb3Content).toBe(true);
   });
 });
