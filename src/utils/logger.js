@@ -1,140 +1,164 @@
 const winston = require('winston');
 const path = require('path');
+const fs = require('fs');
 
-// Create logger instance with proper configuration
+// Ensure logs directory exists
+const logsDir = path.join(__dirname, '../logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+
+// Custom format for console output
+const consoleFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.colorize(),
+  winston.format.printf(({ timestamp, level, message, ...meta }) => {
+    let log = `${timestamp} [${level}]: ${message}`;
+    if (Object.keys(meta).length > 0) {
+      log += ` ${JSON.stringify(meta)}`;
+    }
+    return log;
+  })
+);
+
+// Custom format for file output
+const fileFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.errors({ stack: true }),
+  winston.format.json()
+);
+
+// Create logger instance
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
-  format: winston.format.combine(
-    winston.format.timestamp({
-      format: 'YYYY-MM-DD HH:mm:ss'
-    }),
-    winston.format.errors({ stack: true }),
-    winston.format.json()
-  ),
-  defaultMeta: { 
-    service: 'telegram-bot',
-    version: process.env.npm_package_version || '1.0.0'
-  },
+  format: fileFormat,
+  defaultMeta: { service: 'web3-telegram-bot' },
   transports: [
-    // Write all logs with importance level of `error` or less to `error.log`
-    new winston.transports.File({ 
-      filename: path.join(__dirname, '../logs/error.log'), 
+    // Error log file
+    new winston.transports.File({
+      filename: path.join(logsDir, 'error.log'),
       level: 'error',
       maxsize: 5242880, // 5MB
       maxFiles: 5,
       tailable: true
     }),
-    
-    // Write all logs with importance level of `info` or less to `combined.log`
-    new winston.transports.File({ 
-      filename: path.join(__dirname, '../logs/combined.log'),
+
+    // Combined log file
+    new winston.transports.File({
+      filename: path.join(logsDir, 'combined.log'),
       maxsize: 5242880, // 5MB
       maxFiles: 5,
       tailable: true
     }),
-    
-    // Write all bot analytics to separate file
-    new winston.transports.File({ 
-      filename: path.join(__dirname, '../logs/bot-analytics.log'),
+
+    // Bot analytics log
+    new winston.transports.File({
+      filename: path.join(logsDir, 'bot-analytics.log'),
       level: 'info',
-      maxsize: 10485760, // 10MB
+      maxsize: 5242880, // 5MB
       maxFiles: 10,
-      tailable: true
+      tailable: true,
+      format: winston.format.combine(
+        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        winston.format.printf(({ timestamp, level, message, ...meta }) => {
+          let log = `[${timestamp}] ${message}`;
+          if (Object.keys(meta).length > 0) {
+            log += ` ${JSON.stringify(meta)}`;
+          }
+          return log;
+        })
+      )
     })
   ]
 });
 
-// If we're not in production, log to the console with a simple format
+// Add console transport for development
 if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple(),
-      winston.format.printf(({ timestamp, level, message, service, ...meta }) => {
-        return `${timestamp} [${service}] ${level}: ${message} ${Object.keys(meta).length ? JSON.stringify(meta, null, 2) : ''}`;
-      })
-    )
+    format: consoleFormat
   }));
 }
 
-// Create specialized loggers for different components
+// Create specialized loggers
+const web3Logger = winston.createLogger({
+  level: 'info',
+  format: fileFormat,
+  defaultMeta: { service: 'web3-handler' },
+  transports: [
+    new winston.transports.File({
+      filename: path.join(logsDir, 'web3.log'),
+      maxsize: 5242880, // 5MB
+      maxFiles: 5
+    })
+  ]
+});
+
+const faqLogger = winston.createLogger({
+  level: 'info',
+  format: fileFormat,
+  defaultMeta: { service: 'faq-handler' },
+  transports: [
+    new winston.transports.File({
+      filename: path.join(logsDir, 'faq.log'),
+      maxsize: 5242880, // 5MB
+      maxFiles: 5
+    })
+  ]
+});
+
+const analyticsLogger = winston.createLogger({
+  level: 'info',
+  format: fileFormat,
+  defaultMeta: { service: 'analytics' },
+  transports: [
+    new winston.transports.File({
+      filename: path.join(logsDir, 'analytics.log'),
+      maxsize: 5242880, // 5MB
+      maxFiles: 5
+    })
+  ]
+});
+
+// Helper functions for structured logging
 const loggers = {
-  // Main bot logger
-  bot: logger.child({ component: 'bot' }),
-  
-  // Web3 operations logger
-  web3: logger.child({ component: 'web3' }),
-  
-  // FAQ operations logger
-  faq: logger.child({ component: 'faq' }),
-  
-  // Analytics logger
-  analytics: logger.child({ component: 'analytics' }),
-  
-  // Database operations logger
-  database: logger.child({ component: 'database' }),
-  
-  // Webhook server logger
-  webhook: logger.child({ component: 'webhook' })
+  main: logger,
+  web3: web3Logger,
+  faq: faqLogger,
+  analytics: analyticsLogger
 };
 
-// Helper functions for common logging patterns
-const logUserInteraction = (userId, action, details = {}) => {
-  loggers.analytics.info('User interaction', {
-    userId,
-    action,
-    timestamp: new Date().toISOString(),
-    ...details
-  });
-};
-
-const logAPICall = (apiName, endpoint, responseTime, success = true, error = null) => {
+// API call logging
+const logAPICall = (service, endpoint, responseTime, success, error = null) => {
   const logData = {
-    api: apiName,
+    service,
     endpoint,
     responseTime,
     success,
     timestamp: new Date().toISOString()
   };
-  
+
   if (error) {
     logData.error = error.message;
-    loggers.web3.error('API call failed', logData);
+    logData.status = error.response?.status;
+  }
+
+  if (success) {
+    web3Logger.info('API call successful', logData);
   } else {
-    loggers.web3.info('API call successful', logData);
+    web3Logger.error('API call failed', logData);
   }
 };
 
-const logFAQQuery = (userId, query, matchType, confidence, faqId = null) => {
-  loggers.faq.info('FAQ query', {
-    userId,
-    query,
-    matchType,
-    confidence,
-    faqId,
-    timestamp: new Date().toISOString()
-  });
-};
-
-const logError = (component, error, context = {}) => {
-  loggers[component] || logger.error('Error occurred', {
-    component,
-    error: error.message,
-    stack: error.stack,
-    context,
-    timestamp: new Date().toISOString()
-  });
-};
-
-// Performance monitoring helpers
-const createTimer = (label) => {
+// Performance timing
+const createTimer = (operation) => {
   const start = Date.now();
   return {
+    start,
     end: () => Date.now() - start,
-    log: (component = 'bot') => {
+    log: (loggerType = 'main') => {
       const duration = Date.now() - start;
-      loggers[component].info('Performance timing', {
-        label,
+      loggers[loggerType].info(`Operation completed: ${operation}`, {
+        operation,
         duration,
         timestamp: new Date().toISOString()
       });
@@ -143,12 +167,112 @@ const createTimer = (label) => {
   };
 };
 
+// User interaction logging
+const logUserInteraction = (userId, action, details = {}) => {
+  logger.info('User interaction', {
+    userId,
+    action,
+    details,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Error logging with context
+const logError = (error, context = {}) => {
+  logger.error('Application error', {
+    error: error.message,
+    stack: error.stack,
+    context,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Web3 specific logging
+const logWeb3Query = (queryType, params, result, responseTime) => {
+  web3Logger.info('Web3 query executed', {
+    queryType,
+    params,
+    result: result ? 'success' : 'error',
+    responseTime,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// FAQ specific logging
+const logFAQQuery = (question, answer, confidence, matchType) => {
+  faqLogger.info('FAQ query processed', {
+    question: question.substring(0, 100), // Truncate long questions
+    answerLength: answer ? answer.length : 0,
+    confidence,
+    matchType,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Analytics logging
+const logAnalyticsEvent = (eventType, data = {}) => {
+  analyticsLogger.info('Analytics event', {
+    eventType,
+    data,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Rate limiting logging
+const logRateLimit = (userId, action, limit) => {
+  logger.warn('Rate limit exceeded', {
+    userId,
+    action,
+    limit,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Security event logging
+const logSecurityEvent = (eventType, userId, details = {}) => {
+  logger.warn('Security event', {
+    eventType,
+    userId,
+    details,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Database operation logging
+const logDatabaseOperation = (operation, table, result, duration) => {
+  logger.info('Database operation', {
+    operation,
+    table,
+    result: result ? 'success' : 'error',
+    duration,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Cache operation logging
+const logCacheOperation = (operation, key, hit, duration) => {
+  logger.debug('Cache operation', {
+    operation,
+    key,
+    hit,
+    duration,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Export all logging functions
 module.exports = {
   logger,
   loggers,
-  logUserInteraction,
   logAPICall,
-  logFAQQuery,
+  createTimer,
+  logUserInteraction,
   logError,
-  createTimer
+  logWeb3Query,
+  logFAQQuery,
+  logAnalyticsEvent,
+  logRateLimit,
+  logSecurityEvent,
+  logDatabaseOperation,
+  logCacheOperation
 };

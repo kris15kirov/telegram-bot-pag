@@ -1,322 +1,311 @@
-# 🚀 Web3 Telegram Business Assistant Bot
+# Web3 Telegram Business Assistant Bot
 
-A comprehensive Telegram bot solution with **Web3 integration**, designed for modern blockchain businesses. Features real-time cryptocurrency data, intelligent FAQ responses, and automated customer support with smart message forwarding.
+A production-ready Telegram bot for Web3 businesses, powered by Pashov Audit Group's expertise in securing protocols like Uniswap, Aave, and LayerZero. This bot automates customer support, provides real-time crypto data, and offers intelligent FAQ responses with a professional tone.
 
-## 🌟 **Two Bot Versions Available:**
-- **`src/bot.js`** - Original English business bot
-- **`src/bot-web3.js`** - Enhanced Web3 bot with crypto features
-- **`src/webhook.js`** - Production webhook server
+## Features
 
-## 🎯 **Quick Demo**
-```bash
-npm install
-node demo-web3.js  # Test all Web3 features
-```
+### 🤖 Core Functionality
+- **Web3 FAQs**: Intelligent FAQ system with NLP-based matching, referencing audited projects like Aave, Uniswap, and Ethena
+- **Crypto Data**: Real-time prices (CoinGecko), wallet queries (Moralis), and gas prices (Etherscan)
+- **Quick Responses**: Professional keyboard with options: Urgent Request, Audit Request, Web3 FAQs
+- **Message Forwarding**: Escalate urgent queries to Pashov Audit Group's Action group
+- **Analytics**: Track interactions with SQLite database and view metrics via `/stats`
 
-## ✨ Features
+### 🌐 Web3 Integrations
+- **Price Queries**: `/price ETH` - Get real-time crypto prices with project references
+- **Trending Tokens**: `/trending` - Top 5 trending tokens from CoinGecko
+- **Gas Prices**: `/gas` - Ethereum gas prices via Etherscan
+- **Wallet Queries**: `/checkbalance <address>` - Check ETH balances
+- **NFT Holdings**: `/nfts <address>` - View NFT collections
+- **Project Info**: `/uniswap`, `/aave`, `/layerzero`, `/ethena`, `/sushi` - Detailed project information
 
-### 🔄 Core Functionality
-- **🌐 Web3 Integration** - Real-time crypto prices via CoinGecko API
-- **💰 Live Cryptocurrency Data** - BTC, ETH, SOL, ADA and 100+ cryptocurrencies
-- **📈 Market Analytics** - Global crypto market data and trending coins
-- **📚 JSON-based FAQ** - Comprehensive Web3/DeFi/NFT knowledge base with NLP matching
-- **📊 Analytics Dashboard** - Complete user interaction tracking with SQLite
-- **🔄 Smart Message Filtering** - AI-powered categorization and auto-forwarding
-- **🎛️ Interactive Keyboards** - Professional menu navigation
-- **🚀 Production Ready** - Webhook support with multiple deployment options
+### 📊 Analytics & Monitoring
+- **SQLite Database**: Store user interactions, FAQ queries, and Web3 data usage
+- **Structured Logging**: Winston-based logging with rotation and multiple levels
+- **Performance Tracking**: Response times, cache hits, and API call monitoring
+- **Admin Dashboard**: `/stats` command for comprehensive analytics
 
-### 🏭 Production-Grade Enhancements
-- **📝 Winston Logging** - Professional log rotation and structured logging
-- **⚡ Enhanced Caching** - Node-cache with TTL and memory management
-- **🛡️ Rate Limiting** - Express rate limiter for API protection
-- **⛽ Etherscan Integration** - Real-time gas prices and wallet balances
-- **🧪 Comprehensive Testing** - 62 Jest tests with 85%+ coverage
-- **📊 Performance Monitoring** - Response time tracking and API metrics
+### 🔒 Security & Professionalism
+- **Rate Limiting**: Express rate limiting for API endpoints
+- **Admin Controls**: Restricted commands for authorized users only
+- **Professional Tone**: English-only responses with minimal emojis
+- **Audited Project References**: All responses reference Pashov Audit Group's portfolio
 
-### 📋 Request Categories
-- **🚨 Urgent** - Critical issues and high-priority requests
-- **📺 Media Requests** - Press releases, interviews, photo/video requests
-- **📊 Audit Requests** - Financial, security, compliance, and internal audits
-- **❓ FAQ** - Frequently asked questions and general information
-- **📞 Contact** - Company contact information and working hours
-
-### 🤖 Smart Features
-- **Message Analysis** - AI-powered message categorization and priority detection
-- **Contact Detection** - Automatically extracts phone numbers, emails, and social handles
-- **Session Management** - Tracks user interactions and maintains conversation context
-- **Admin Commands** - Special commands for administrators to monitor bot status
-- **Professional Interface** - Clean, intuitive English-language user experience
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
-- Node.js (v14 or higher)
+- Node.js 16+ 
 - npm or yarn
-- Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
+- Telegram Bot Token (from [@BotFather](https://t.me/botfather))
+- Optional: Moralis API key, Etherscan API key
 
-### 1. Clone and Install
-```bash
-git clone <your-repo-url>
-cd telegram-bot-pag
-npm install
-```
+### Installation
 
-### 2. Configuration
-```bash
-# Copy environment template
-cp env.example .env
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/kris15kirov/telegram-bot-pag.git
+   cd telegram-bot-pag
+   ```
 
-# Edit .env file with your configuration
-nano .env
-```
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-### 3. Get Bot Token
-1. Message [@BotFather](https://t.me/BotFather) on Telegram
-2. Send `/newbot` and follow instructions
-3. Copy the bot token to your `.env` file
+3. **Configure environment variables**
+   ```bash
+   cp env.example .env
+   # Edit .env with your configuration
+   ```
 
-### 4. Set Up Action Group (Optional)
-1. Create a Telegram group for receiving forwarded messages
-2. Add your bot to the group as admin
-3. Get the group chat ID and add it to `.env`
+4. **Start the bot**
+   ```bash
+   # Development (polling)
+   npm run dev
+   
+   # Production (webhook)
+   npm run webhook
+   ```
 
-### 5. Run the Bot
-```bash
-# Development mode (with auto-restart)
-npm run dev
-
-# Production mode
-npm start
-```
-
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
-Create a `.env` file based on `env.example`:
-
-```env
-# Required: Your bot token from BotFather
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-
-# Optional: Group chat ID for forwarding important messages
+```bash
+# Required
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 ACTION_GROUP_CHAT_ID=your_action_group_chat_id_here
+ADMIN_USER_IDS=123456789,987654321
 
-# Optional: Admin user IDs (comma separated)
-ADMIN_USER_IDS=user_id_1,user_id_2
+# Optional (for Web3 features)
+MORALIS_API_KEY=your_moralis_api_key_here
+ETHERSCAN_API_KEY=your_etherscan_api_key_here
 
-# Optional: Bot configuration
-BOT_NAME=Business Assistant Bot
+# Deployment
+WEBHOOK_URL=https://your-domain.com
+PORT=3000
+
+# Bot Configuration
+BOT_NAME=Web3 Security Assistant
 RESPONSE_DELAY=1000
+LOG_LEVEL=info
+NODE_ENV=production
 ```
 
-### Getting Chat IDs
+### Getting API Keys
 
-#### For Action Group:
-1. Add your bot to the group
-2. Send a message in the group
-3. Visit: `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
-4. Look for `"chat":{"id":-XXXXXXXXX}` in the JSON response
+1. **Telegram Bot Token**: Message [@BotFather](https://t.me/botfather) on Telegram
+2. **Moralis API Key**: Sign up at [moralis.io](https://moralis.io) (free tier available)
+3. **Etherscan API Key**: Register at [etherscan.io](https://etherscan.io) (free tier available)
 
-#### For Admin User IDs:
-1. Message [@userinfobot](https://t.me/userinfobot)
-2. It will reply with your user ID
+## Usage
 
-## 📁 Project Structure
+### Bot Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/start` | Initialize the bot | `/start` |
+| `/help` | Show help information | `/help` |
+| `/price <symbol>` | Get crypto price | `/price ETH` |
+| `/trending` | Show trending tokens | `/trending` |
+| `/gas` | Ethereum gas prices | `/gas` |
+| `/checkbalance <address>` | Check wallet balance | `/checkbalance 0x123...` |
+| `/nfts <address>` | View NFT holdings | `/nfts 0x123...` |
+| `/uniswap` | Uniswap project info | `/uniswap` |
+| `/aave` | Aave project info | `/aave` |
+| `/stats` | View analytics (admin) | `/stats` |
+
+### Admin Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/addfaq <question> \| <answer>` | Add new FAQ | `/addfaq What is DeFi? \| DeFi is...` |
+| `/listfaqs` | List all FAQs | `/listfaqs` |
+| `/searchfaq <term>` | Search FAQs | `/searchfaq DeFi` |
+
+### Keyboard Interactions
+
+The bot provides professional keyboard options:
+- **Urgent Request** - Forward to action group
+- **Media Inquiry** - Handle press requests
+- **Audit Request** - Connect with audit team
+- **Web3 FAQs** - Access FAQ system
+- **Crypto Data** - Web3 data submenu
+- **Contact Support** - Get contact information
+
+## Deployment
+
+### Docker Deployment
+
+1. **Build and run with Docker Compose**
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Environment variables in Docker**
+   ```bash
+   # Set environment variables
+   export TELEGRAM_BOT_TOKEN=your_token
+   export ACTION_GROUP_CHAT_ID=your_group_id
+   # ... other variables
+   
+   # Start services
+   docker-compose up -d
+   ```
+
+### Render Deployment
+
+1. **Connect your repository to Render**
+2. **Configure environment variables in Render dashboard**
+3. **Deploy automatically** - Render will use the `render.yaml` configuration
+
+### Manual Deployment
+
+1. **Set up webhook**
+   ```bash
+   curl -X POST "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook" \
+        -H "Content-Type: application/json" \
+        -d '{"url": "https://your-domain.com/bot"}'
+   ```
+
+2. **Start the webhook server**
+   ```bash
+   npm run webhook
+   ```
+
+## Development
+
+### Project Structure
 
 ```
 telegram-bot-pag/
 ├── src/
-│   ├── bot.js                 # Main bot application
+│   ├── bot-web3.js          # Main bot (polling mode)
+│   ├── webhook.js           # Webhook server
 │   ├── config/
-│   │   └── config.js          # Configuration management
+│   │   └── config.js        # Configuration management
 │   ├── data/
-│   │   └── faq.js             # FAQ responses database
-│   └── utils/
-│       ├── keyboards.js       # Telegram keyboard layouts
-│       └── messageAnalyzer.js # Message analysis and categorization
-├── package.json               # Dependencies and scripts
-├── env.example               # Environment variables template
-└── README.md                 # This file
+│   │   ├── faq.json         # FAQ database
+│   │   └── bot_analytics.db # SQLite analytics
+│   ├── handlers/
+│   │   ├── faqHandler.js    # FAQ processing
+│   │   ├── web3Handler.js   # Web3 integrations
+│   │   └── analyticsHandler.js # Analytics tracking
+│   ├── utils/
+│   │   ├── keyboards.js     # Keyboard layouts
+│   │   └── logger.js        # Logging system
+│   └── logs/                # Application logs
+├── tests/                   # Test files
+├── Dockerfile              # Docker configuration
+├── docker-compose.yml      # Docker Compose setup
+├── render.yaml             # Render deployment
+└── README.md              # This file
 ```
 
-## 🎯 Usage Guide
-
-### User Commands
-- `/start` - Initialize the bot and show main menu
-- `/help` - Display help information
-- `/status` - Show bot status (admin only)
-
-### Main Menu Options
-- **🚨 Urgent** - For critical issues and emergencies
-- **📺 Media request** - For press and media inquiries
-- **📊 Audit request** - For audit and compliance services
-- **❓ FAQ** - Browse frequently asked questions
-- **📞 Contact** - Get company contact information
-
-### Smart Features
-The bot automatically:
-- Detects urgent keywords and escalates messages
-- Identifies media and audit requests
-- Extracts contact information from messages
-- Forwards high-priority messages to action groups
-- Provides contextual English responses based on message content
-
-## 🛠 Development
-
-### Adding New FAQ Responses
-Edit `src/data/faq.js` to add new questions and answers:
-
-```javascript
-const faq = {
-  'new question': 'New answer here',
-  'another question': 'Another answer here'
-};
-```
-
-### Customizing Keywords
-Modify `src/config/config.js` to adjust keyword detection:
-
-```javascript
-keywords: {
-  urgent: ['urgent', 'emergency', 'critical', 'asap'],
-  media: ['media', 'interview', 'press', 'journalist'],
-  audit: ['audit', 'inspection', 'review', 'compliance']
-}
-```
-
-### Adding New Keyboards
-Create new keyboard layouts in `src/utils/keyboards.js`:
-
-```javascript
-const customKeyboard = {
-  reply_markup: {
-    keyboard: [
-      [{ text: 'Option 1' }, { text: 'Option 2' }]
-    ],
-    resize_keyboard: true
-  }
-};
-```
-
-## 📊 Monitoring
-
-### Admin Commands
-Administrators can use special commands:
+### Running Tests
 
 ```bash
-/status  # View bot statistics and active users
+# Run all tests
+npm test
+
+# Run with coverage
+npm run test:coverage
+
+# Watch mode
+npm run test:watch
 ```
 
-### Logs
-The bot logs important events to console:
-- User interactions
-- Message forwards
-- Error handling
-- System status
+### Adding New Features
 
-## 🔒 Security Features
+1. **FAQ Management**: Edit `src/data/faq.json` or use `/addfaq` command
+2. **Web3 Integrations**: Extend `src/handlers/web3Handler.js`
+3. **Keyboard Options**: Modify `src/utils/keyboards.js`
+4. **Analytics**: Add new tracking in `src/handlers/analyticsHandler.js`
 
-- **Admin Verification** - Admin commands require user ID verification
-- **Input Validation** - All user inputs are properly sanitized
-- **Error Handling** - Graceful error handling with user-friendly messages
-- **Rate Limiting** - Built-in delays prevent spam
-- **Secure Configuration** - Sensitive data stored in environment variables
+## Monitoring & Analytics
 
-## 🚀 Deployment
+### Log Files
 
-### Local Development
-```bash
-npm run dev
-```
+- `src/logs/combined.log` - All application logs
+- `src/logs/error.log` - Error logs only
+- `src/logs/bot-analytics.log` - Bot interaction logs
+- `src/logs/web3.log` - Web3 API calls
+- `src/logs/faq.log` - FAQ queries
 
-### Production Deployment
-```bash
-npm start
-```
+### Database Schema
 
-### Using PM2 (Recommended for production)
-```bash
-# Install PM2
-npm install -g pm2
+The SQLite database (`src/data/bot_analytics.db`) includes:
 
-# Start with PM2
-pm2 start src/bot.js --name "telegram-bot"
+- **user_interactions**: All user interactions
+- **faq_queries**: FAQ search and response data
+- **web3_queries**: Web3 API calls and responses
+- **message_forwarding**: Forwarded message tracking
+- **admin_actions**: Administrative actions
 
-# Monitor
-pm2 monit
+### Health Checks
 
-# Auto-restart on system reboot
-pm2 startup
-pm2 save
-```
+- **Endpoint**: `GET /health`
+- **Docker**: Built-in health check
+- **Render**: Automatic health monitoring
 
-### Docker Deployment
-```dockerfile
-FROM node:16-alpine
-
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY src/ ./src/
-COPY .env ./
-
-CMD ["npm", "start"]
-```
-
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
-#### Bot not responding
-- Check if bot token is correct
-- Verify bot is not stopped in BotFather
-- Check console for error messages
+1. **Bot not responding**
+   - Check `TELEGRAM_BOT_TOKEN` is correct
+   - Verify webhook URL is accessible
+   - Check logs for errors
 
-#### Messages not forwarding to action group
-- Verify `ACTION_GROUP_CHAT_ID` is correct
-- Ensure bot is admin in the target group
-- Check bot has message sending permissions
+2. **Web3 features not working**
+   - Verify API keys are set correctly
+   - Check API rate limits
+   - Review network connectivity
 
-#### FAQ not working
-- Verify message text matches FAQ keywords
-- Check for typos in FAQ database
-- Ensure proper encoding for Bulgarian characters
+3. **Database errors**
+   - Ensure `src/data/` directory exists
+   - Check file permissions
+   - Verify SQLite is working
 
-### Debug Mode
-Enable detailed logging by modifying the console.log statements in the code.
+### Log Analysis
 
-## 📈 Performance
+```bash
+# View recent logs
+tail -f src/logs/combined.log
 
-- **Response Time**: ~1 second average response
-- **Concurrent Users**: Supports multiple users simultaneously
-- **Memory Usage**: ~50MB average
-- **Uptime**: Designed for 24/7 operation
+# Check for errors
+grep "ERROR" src/logs/error.log
 
-## 🤝 Contributing
+# Monitor bot activity
+tail -f src/logs/bot-analytics.log
+```
+
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test thoroughly
+4. Add tests for new functionality
 5. Submit a pull request
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - see LICENSE file for details
 
-## 🆘 Support
+## Support
 
-For technical support or questions:
-- Create an issue on GitHub
-- Contact the development team
-- Check the FAQ section
+- **Telegram**: @pashovkrum
+- **Website**: https://www.pashov.net
+- **GitHub**: https://github.com/pashov/audits
 
-## 🔄 Updates
+## Trusted By
 
-Check the repository regularly for updates and improvements. The bot is actively maintained and enhanced with new features.
+This bot is powered by Pashov Audit Group's expertise, trusted by leading Web3 protocols:
 
----
+- **Uniswap** - V4 Periphery contracts audit
+- **Aave** - v3.2 upgrade and GHO stablecoin audit
+- **LayerZero** - Six cross-chain messaging audits
+- **Ethena** - Long-term partnership since 2023
+- **Sushi** - RouteProcessor V6 audit
 
-**Made with ❤️ for efficient business communication**
+*Securing over $20 billion in TVL across 150+ audits*

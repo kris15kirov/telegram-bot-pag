@@ -1,198 +1,273 @@
 const FAQHandler = require('../handlers/faqHandler');
-const fs = require('fs');
 const path = require('path');
 
-// Mock the database to avoid actual DB operations in tests
-jest.mock('../utils/database', () => {
-  return jest.fn().mockImplementation(() => ({
-    logFAQQuery: jest.fn(),
-    addDynamicFAQ: jest.fn(),
-    getDynamicFAQs: jest.fn().mockResolvedValue([])
-  }));
-});
+// Mock fs.promises
+jest.mock('fs', () => ({
+  promises: {
+    readFile: jest.fn(),
+    writeFile: jest.fn()
+  }
+}));
 
-describe('FAQ Handler Tests', () => {
+const fs = require('fs').promises;
+
+describe('FAQHandler', () => {
   let faqHandler;
+  const mockFAQData = {
+    faqs: [
+      {
+        id: 'test_faq_1',
+        keywords: ['defi', 'decentralized finance'],
+        question: 'What is DeFi?',
+        answer: 'DeFi is decentralized finance using blockchain technology.'
+      },
+      {
+        id: 'test_faq_2',
+        keywords: ['audit', 'security'],
+        question: 'Why are audits important?',
+        answer: 'Audits ensure security and identify vulnerabilities.'
+      }
+    ],
+    fallback_responses: [
+      'I couldn\'t find an answer. Please try again.',
+      'That\'s an interesting question. Contact support for more details.'
+    ],
+    project_references: {
+      defi: ['Aave', 'Uniswap'],
+      audit: ['Sushi', 'Ethena']
+    }
+  };
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    fs.readFile.mockResolvedValue(JSON.stringify(mockFAQData));
     faqHandler = new FAQHandler();
+    await faqHandler.loadFAQs();
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('FAQ Loading', () => {
-    test('should load FAQs from JSON file', () => {
-      expect(faqHandler.faqs).toBeDefined();
-      expect(Array.isArray(faqHandler.faqs)).toBe(true);
-      expect(faqHandler.faqs.length).toBeGreaterThan(0);
+  describe('loadFAQs', () => {
+    it('should load FAQ data successfully', async () => {
+      expect(faqHandler.faqs).toHaveLength(2);
+      expect(faqHandler.fallbackResponses).toHaveLength(2);
+      expect(faqHandler.projectReferences).toBeDefined();
     });
 
-    test('should have required FAQ structure', () => {
-      const firstFaq = faqHandler.faqs[0];
-      expect(firstFaq).toHaveProperty('id');
-      expect(firstFaq).toHaveProperty('question');
-      expect(firstFaq).toHaveProperty('answer');
-      expect(firstFaq).toHaveProperty('keywords');
-      expect(Array.isArray(firstFaq.keywords)).toBe(true);
+    it('should handle file read errors', async () => {
+      fs.readFile.mockRejectedValue(new Error('File not found'));
+
+      await expect(async () => {
+        const newHandler = new FAQHandler();
+        await newHandler.loadFAQs();
+      }).rejects.toThrow('Failed to load FAQ data');
     });
   });
 
-  describe('FAQ Matching', () => {
-    test('should find direct question match', () => {
-      const result = faqHandler.findFAQResponse('What is DeFi?');
-      
+  describe('findBestMatch', () => {
+    it('should find exact keyword match', async () => {
+      const result = await faqHandler.findBestMatch('What is DeFi?');
+
       expect(result).toBeDefined();
-      expect(result.matchType).toBe('direct');
-      expect(result.confidence).toBe(1.0);
-      expect(result.question).toBe('What is DeFi?');
+      expect(result.faq.question).toBe('What is DeFi?');
+      expect(result.confidence).toBeGreaterThan(0.9);
+      expect(result.matchType).toBe('keyword');
     });
 
-    test('should find keyword-based match', () => {
-      const result = faqHandler.findFAQResponse('defi explanation');
-      
+    it('should find fuzzy match', async () => {
+      const result = await faqHandler.findBestMatch('tell me about defi');
+
       expect(result).toBeDefined();
-      expect(result.matchType).toBe('nlp');
-      expect(result.confidence).toBeGreaterThan(0.6);
+      expect(result.faq.question).toBe('What is DeFi?');
+      expect(result.confidence).toBeGreaterThan(0.7);
     });
 
-    test('should handle case-insensitive matching', () => {
-      const result = faqHandler.findFAQResponse('WHAT IS DEFI?');
-      
-      expect(result).toBeDefined();
-      expect(result.matchType).toBe('direct');
-    });
+    it('should return null for no match', async () => {
+      const result = await faqHandler.findBestMatch('completely unrelated question');
 
-    test('should return null for unmatched queries', () => {
-      const result = faqHandler.findFAQResponse('completely unrelated query xyz123');
-      
       expect(result).toBeNull();
     });
 
-    test('should handle empty or invalid input', () => {
-      expect(faqHandler.findFAQResponse('')).toBeNull();
-      expect(faqHandler.findFAQResponse(null)).toBeNull();
-      expect(faqHandler.findFAQResponse(undefined)).toBeNull();
-      expect(faqHandler.findFAQResponse(123)).toBeNull();
+    it('should handle empty input', async () => {
+      const result = await faqHandler.findBestMatch('');
+
+      expect(result.matchType).toBe('fallback');
     });
   });
 
-  describe('NLP Features', () => {
-    test('should perform NLP matching with stemming', () => {
-      const result = faqHandler.findFAQResponse('explain decentralized finance');
-      
-      expect(result).toBeDefined();
-      expect(result.confidence).toBeGreaterThan(0.5);
+  describe('calculateKeywordScore', () => {
+    it('should calculate correct keyword score', () => {
+      const score = faqHandler.calculateKeywordScore('defi is great', ['defi', 'blockchain']);
+
+      expect(score).toBe(0.5); // 1 out of 2 keywords match
     });
 
-    test('should handle similar questions with different wording', () => {
-      const result1 = faqHandler.findFAQResponse('What is an NFT?');
-      const result2 = faqHandler.findFAQResponse('explain non-fungible tokens');
-      
-      expect(result1).toBeDefined();
-      expect(result2).toBeDefined();
-      // Both should match the same FAQ or related ones
+    it('should return 0 for no keywords', () => {
+      const score = faqHandler.calculateKeywordScore('some text', []);
+
+      expect(score).toBe(0);
     });
 
-    test('should calculate confidence scores correctly', () => {
-      const result = faqHandler.findFAQResponse('blockchain technology');
-      
-      if (result) {
-        expect(result.confidence).toBeGreaterThan(0);
-        expect(result.confidence).toBeLessThanOrEqual(1);
-      }
+    it('should return 1 for perfect match', () => {
+      const score = faqHandler.calculateKeywordScore('defi blockchain', ['defi', 'blockchain']);
+
+      expect(score).toBe(1);
     });
   });
 
-  describe('FAQ Statistics', () => {
-    test('should return FAQ statistics', () => {
-      const stats = faqHandler.getFAQStats();
-      
-      expect(stats).toHaveProperty('totalFAQs');
-      expect(stats).toHaveProperty('categories');
-      expect(stats).toHaveProperty('avgKeywordsPerFAQ');
-      expect(stats.totalFAQs).toBeGreaterThan(0);
+  describe('normalizeText', () => {
+    it('should normalize text correctly', () => {
+      const normalized = faqHandler.normalizeText('  What is DeFi?!  ');
+
+      expect(normalized).toBe('what is defi');
     });
 
-    test('should categorize FAQs correctly', () => {
-      const categories = faqHandler.groupFAQsByCategory();
-      
-      expect(categories).toBeDefined();
-      expect(typeof categories).toBe('object');
+    it('should handle special characters', () => {
+      const normalized = faqHandler.normalizeText('DeFi & Blockchain!');
+
+      expect(normalized).toBe('defi blockchain');
     });
   });
 
-  describe('Search Functionality', () => {
-    test('should search FAQs by term', () => {
-      const results = faqHandler.searchFAQs('blockchain');
-      
-      expect(Array.isArray(results)).toBe(true);
-      expect(results.length).toBeGreaterThan(0);
+  describe('addFAQ', () => {
+    it('should add new FAQ successfully', async () => {
+      fs.writeFile.mockResolvedValue();
+
+      const newFAQ = await faqHandler.addFAQ(
+        'What is blockchain?',
+        'Blockchain is a distributed ledger technology.'
+      );
+
+      expect(newFAQ.question).toBe('What is blockchain?');
+      expect(newFAQ.answer).toBe('Blockchain is a distributed ledger technology.');
+      expect(newFAQ.keywords).toContain('blockchain');
+      expect(faqHandler.faqs).toHaveLength(3);
     });
 
-    test('should return empty array for non-existent search terms', () => {
-      const results = faqHandler.searchFAQs('nonexistentterm123');
-      
-      expect(Array.isArray(results)).toBe(true);
-      expect(results.length).toBe(0);
-    });
-  });
+    it('should handle save errors', async () => {
+      fs.writeFile.mockRejectedValue(new Error('Write failed'));
 
-  describe('Response Formatting', () => {
-    test('should format FAQ response correctly', () => {
-      const faq = faqHandler.faqs[0];
-      const formatted = faqHandler.formatFAQResponse(faq);
-      
-      expect(formatted).toContain('❓');
-      expect(formatted).toContain(faq.question);
-      expect(formatted).toContain(faq.answer);
-    });
-
-    test('should handle null FAQ input', () => {
-      const formatted = faqHandler.formatFAQResponse(null);
-      
-      expect(formatted).toBeNull();
+      await expect(faqHandler.addFAQ('test', 'answer')).rejects.toThrow('Failed to add FAQ');
     });
   });
 
-  describe('Fallback Responses', () => {
-    test('should provide fallback responses', () => {
-      const fallback = faqHandler.getFallbackResponse();
-      
-      expect(typeof fallback).toBe('string');
-      expect(fallback.length).toBeGreaterThan(0);
+  describe('listFAQs', () => {
+    it('should return formatted FAQ list', async () => {
+      const result = await faqHandler.listFAQs();
+
+      expect(result.count).toBe(2);
+      expect(result.faqs).toHaveLength(2);
+      expect(result.formatted).toContain('What is DeFi?');
+      expect(result.formatted).toContain('Why are audits important?');
+    });
+  });
+
+  describe('getProjectReference', () => {
+    it('should find project references', () => {
+      const faq = {
+        answer: 'DeFi protocols like Aave and Uniswap provide lending services.'
+      };
+
+      const reference = faqHandler.getProjectReference(faq);
+
+      expect(reference).toBe('Aave, Uniswap');
     });
 
-    test('should have multiple fallback options', () => {
-      expect(faqHandler.fallbackResponses.length).toBeGreaterThan(0);
+    it('should return null for no references', () => {
+      const faq = {
+        answer: 'This is a general answer without project references.'
+      };
+
+      const reference = faqHandler.getProjectReference(faq);
+
+      expect(reference).toBeNull();
+    });
+  });
+
+  describe('handleFAQCommand', () => {
+    it('should handle addfaq command', async () => {
+      fs.writeFile.mockResolvedValue();
+
+      const result = await faqHandler.handleFAQCommand('addfaq', ['What is NFT? | NFT is a non-fungible token']);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('FAQ added successfully');
+    });
+
+    it('should handle listfaqs command', async () => {
+      const result = await faqHandler.handleFAQCommand('listfaqs', []);
+
+      expect(result.count).toBe(2);
+      expect(result.formatted).toContain('Available FAQs');
+    });
+
+    it('should handle search command', async () => {
+      const result = await faqHandler.handleFAQCommand('search', ['defi']);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('What is DeFi?');
+    });
+
+    it('should handle unknown command', async () => {
+      await expect(faqHandler.handleFAQCommand('unknown', [])).rejects.toThrow('Unknown FAQ command');
+    });
+  });
+
+  describe('processUserQuestion', () => {
+    it('should process successful FAQ match', async () => {
+      const result = await faqHandler.processUserQuestion('What is DeFi?', 123);
+
+      expect(result.success).toBe(true);
+      expect(result.answer).toContain('DeFi is decentralized finance');
+      expect(result.confidence).toBeGreaterThan(0.9);
+    });
+
+    it('should handle no match with fallback', async () => {
+      const result = await faqHandler.processUserQuestion('completely unrelated', 123);
+
+      expect(result.success).toBe(false);
+      expect(result.answer).toContain('I couldn\'t find');
+    });
+
+    it('should handle errors gracefully', async () => {
+      // Mock findBestMatch to throw error
+      jest.spyOn(faqHandler, 'findBestMatch').mockRejectedValue(new Error('Test error'));
+
+      const result = await faqHandler.processUserQuestion('test question', 123);
+
+      expect(result.success).toBe(false);
+      expect(result.answer).toContain('encountered an error');
+    });
+  });
+
+  describe('extractKeywords', () => {
+    it('should extract keywords from text', () => {
+      const keywords = faqHandler.extractKeywords('What is blockchain technology?');
+
+      expect(keywords).toContain('blockchain');
+      expect(keywords).toContain('technology');
+      expect(keywords.length).toBeLessThanOrEqual(5);
+    });
+
+    it('should filter out stop words', () => {
+      const keywords = faqHandler.extractKeywords('What is the blockchain?');
+
+      expect(keywords).toContain('blockchain');
+      expect(keywords).not.toContain('what');
+      expect(keywords).not.toContain('is');
+      expect(keywords).not.toContain('the');
+    });
+  });
+
+  describe('isStopWord', () => {
+    it('should identify stop words', () => {
+      expect(faqHandler.isStopWord('the')).toBe(true);
+      expect(faqHandler.isStopWord('is')).toBe(true);
+      expect(faqHandler.isStopWord('blockchain')).toBe(false);
     });
   });
 });
-
-describe('FAQ Data Validation', () => {
-  test('FAQ JSON file should exist and be valid', () => {
-    const faqPath = path.join(__dirname, '../data/faq.json');
-    expect(fs.existsSync(faqPath)).toBe(true);
-    
-    const faqData = JSON.parse(fs.readFileSync(faqPath, 'utf8'));
-    expect(faqData).toHaveProperty('faqs');
-    expect(Array.isArray(faqData.faqs)).toBe(true);
-    expect(faqData.faqs.length).toBeGreaterThanOrEqual(5);
-  });
-
-  test('All FAQs should have required Web3 content', () => {
-    const faqHandler = new FAQHandler();
-    const web3Keywords = ['defi', 'nft', 'blockchain', 'crypto', 'token', 'wallet', 'smart contract'];
-    
-    let hasWeb3Content = false;
-    faqHandler.faqs.forEach(faq => {
-      const faqText = (faq.question + ' ' + faq.answer + ' ' + faq.keywords.join(' ')).toLowerCase();
-      if (web3Keywords.some(keyword => faqText.includes(keyword))) {
-        hasWeb3Content = true;
-      }
-    });
-    
-    expect(hasWeb3Content).toBe(true);
+expect(hasWeb3Content).toBe(true);
   });
 });

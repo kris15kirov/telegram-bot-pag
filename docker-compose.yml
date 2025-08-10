@@ -1,29 +1,52 @@
 version: '3.8'
 
 services:
-  web3-bot:
+  web3-telegram-bot:
     build: .
+    container_name: web3-telegram-bot
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - ACTION_GROUP_CHAT_ID=${ACTION_GROUP_CHAT_ID}
+      - ADMIN_USER_IDS=${ADMIN_USER_IDS}
+      - WEBHOOK_URL=${WEBHOOK_URL}
       - PORT=3000
-    env_file:
-      - .env
+      - MORALIS_API_KEY=${MORALIS_API_KEY}
+      - ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
+      - BOT_NAME=${BOT_NAME:-Web3 Security Assistant}
+      - RESPONSE_DELAY=${RESPONSE_DELAY:-1000}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ./src/logs:/app/src/logs
-    restart: unless-stopped
-    command: npm run webhook
+      - ./src/data:/app/src/data
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - web3-bot-network
+  # Optional: Add a database service for production
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: web3-bot-db
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: web3bot
+  #     POSTGRES_USER: botuser
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - web3-bot-network
 
-  bot-polling:
-    build: .
-    environment:
-      - NODE_ENV=development
-    env_file:
-      - .env
-    volumes:
-      - ./src/logs:/app/src/logs
-    restart: unless-stopped
-    command: npm run dev
-    profiles:
-      - dev
+networks:
+  web3-bot-network:
+    driver: bridge
+
+# volumes:
+#   postgres_data:

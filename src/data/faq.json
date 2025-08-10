@@ -2,56 +2,156 @@
   "faqs": [
     {
       "id": "defi_explanation",
-      "keywords": ["defi", "decentralized finance", "what is defi"],
+      "keywords": [
+        "defi",
+        "decentralized finance",
+        "finance",
+        "lending",
+        "borrowing"
+      ],
       "question": "What is DeFi?",
-      "answer": "DeFi (Decentralized Finance) refers to a blockchain-based form of finance that does not rely on central financial intermediaries such as brokerages, exchanges, or banks. Instead, it utilizes smart contracts on blockchains, primarily Ethereum. DeFi platforms allow people to lend or borrow funds, trade cryptocurrencies, and earn interest without traditional banking systems."
+      "answer": "Decentralized Finance (DeFi) uses blockchain technology to provide financial services without intermediaries. Protocols like Aave (lending) and Uniswap (trading), audited by Pashov Audit Group, enable users to lend, borrow, and trade assets directly on-chain."
     },
     {
-      "id": "nft_explanation",
-      "keywords": ["nft", "non-fungible token", "what is nft", "digital art"],
-      "question": "What is an NFT?",
-      "answer": "NFT stands for Non-Fungible Token. It's a unique digital certificate stored on a blockchain that proves ownership of a specific digital item, such as artwork, music, videos, or virtual real estate. Unlike cryptocurrencies, each NFT is unique and cannot be exchanged on a one-to-one basis with another NFT."
+      "id": "smart_contract_audit",
+      "keywords": [
+        "audit",
+        "smart contract",
+        "security",
+        "vulnerability",
+        "review"
+      ],
+      "question": "Why are smart contract audits important?",
+      "answer": "Smart contract audits, like those conducted by Pashov Audit Group for Sushi and Ethena, ensure security by identifying vulnerabilities before deployment. With over $20 billion in TVL secured across 150+ audits, proper security reviews are essential for Web3 protocols."
     },
     {
-      "id": "blockchain_explanation",
-      "keywords": ["blockchain", "what is blockchain", "distributed ledger"],
-      "question": "What is Blockchain?",
-      "answer": "Blockchain is a distributed ledger technology that maintains a continuously growing list of records (blocks) that are linked and secured using cryptography. Each block contains a cryptographic hash of the previous block, a timestamp, and transaction data. This creates an immutable record that is transparent and decentralized."
+      "id": "cross_chain_messaging",
+      "keywords": [
+        "cross-chain",
+        "layerzero",
+        "bridge",
+        "messaging",
+        "interoperability"
+      ],
+      "question": "What is cross-chain messaging?",
+      "answer": "Cross-chain messaging enables communication between different blockchains. LayerZero, audited by Pashov Audit Group, provides infrastructure for seamless cross-chain interactions across Ethereum, Solana, and other networks."
     },
     {
-      "id": "wallet_security",
-      "keywords": ["wallet security", "secure wallet", "protect crypto", "private keys"],
-      "question": "How do I keep my crypto wallet secure?",
-      "answer": "To keep your crypto wallet secure: 1) Never share your private keys or seed phrase, 2) Use hardware wallets for large amounts, 3) Enable 2FA when possible, 4) Keep software updated, 5) Use reputable wallet providers, 6) Double-check addresses before sending, 7) Be wary of phishing attempts, and 8) Consider using multi-signature wallets for added security."
+      "id": "stablecoin_explanation",
+      "keywords": [
+        "stablecoin",
+        "stable",
+        "dollar",
+        "peg",
+        "volatility"
+      ],
+      "question": "What is a stablecoin?",
+      "answer": "A stablecoin is a cryptocurrency pegged to a stable asset to reduce volatility. Ethena's synthetic dollar, audited by Pashov Audit Group, represents an innovative approach to stablecoin design with enhanced security measures."
+    },
+    {
+      "id": "nft_minting",
+      "keywords": [
+        "nft",
+        "mint",
+        "non-fungible token",
+        "digital asset",
+        "collection"
+      ],
+      "question": "How to mint an NFT?",
+      "answer": "Minting an NFT involves creating a unique digital asset on a blockchain. Projects like Sofamon, audited by Pashov Audit Group, demonstrate secure NFT minting processes with proper smart contract validation."
+    },
+    {
+      "id": "dex_trading",
+      "keywords": [
+        "dex",
+        "exchange",
+        "trading",
+        "swap",
+        "amm"
+      ],
+      "question": "What is a DEX?",
+      "answer": "A Decentralized Exchange (DEX) allows peer-to-peer trading without intermediaries. Uniswap and Sushi, both audited by Pashov Audit Group, are leading DEX protocols that enable secure token swaps with automated market making."
+    },
+    {
+      "id": "lending_protocols",
+      "keywords": [
+        "lending",
+        "borrowing",
+        "interest",
+        "collateral",
+        "money market"
+      ],
+      "question": "How do DeFi lending protocols work?",
+      "answer": "DeFi lending protocols like Aave, audited by Pashov Audit Group, enable users to lend assets and earn interest or borrow against collateral. These protocols use smart contracts to automate lending processes securely."
     },
     {
       "id": "gas_fees",
-      "keywords": ["gas fees", "ethereum fees", "transaction costs", "gas price"],
+      "keywords": [
+        "gas",
+        "fees",
+        "ethereum",
+        "transaction",
+        "cost"
+      ],
       "question": "What are gas fees?",
-      "answer": "Gas fees are transaction costs on the Ethereum network (and other blockchains). They compensate miners/validators for the computational energy required to process transactions. Gas fees vary based on network congestion - during high traffic, fees increase. You can often reduce costs by timing transactions during low-traffic periods or using Layer 2 solutions."
+      "answer": "Gas fees are transaction costs on blockchain networks like Ethereum. They compensate validators for processing transactions. Use the /gas command to check current Ethereum gas prices."
     },
     {
-      "id": "staking_rewards",
-      "keywords": ["staking", "proof of stake", "staking rewards", "passive income"],
-      "question": "What is cryptocurrency staking?",
-      "answer": "Cryptocurrency staking involves holding and locking up tokens in a wallet to support network operations on proof-of-stake blockchains. In return, you earn staking rewards (typically 4-12% annually). Staking helps secure the network and validates transactions. Popular staking cryptocurrencies include Ethereum 2.0, Cardano, Solana, and Polkadot."
+      "id": "wallet_security",
+      "keywords": [
+        "wallet",
+        "security",
+        "private key",
+        "seed phrase",
+        "safety"
+      ],
+      "question": "How to secure my crypto wallet?",
+      "answer": "Wallet security is crucial in Web3. Projects like Ambire, audited by Pashov Audit Group, implement advanced security features. Always use hardware wallets, secure your private keys, and never share seed phrases."
     },
     {
-      "id": "smart_contracts",
-      "keywords": ["smart contracts", "automated contracts", "ethereum contracts"],
-      "question": "What are smart contracts?",
-      "answer": "Smart contracts are self-executing contracts with terms directly written into code. They automatically execute when predetermined conditions are met, without need for intermediaries. Smart contracts run on blockchain platforms like Ethereum and enable decentralized applications (DApps), DeFi protocols, and automated business processes."
-    },
-    {
-      "id": "yield_farming",
-      "keywords": ["yield farming", "liquidity mining", "defi yield", "liquidity pools"],
-      "question": "What is yield farming?",
-      "answer": "Yield farming (or liquidity mining) is a DeFi strategy where users provide liquidity to decentralized exchanges or lending platforms in exchange for rewards. Users deposit tokens into liquidity pools and earn fees from trades, plus additional token rewards. While potentially profitable, yield farming carries risks including impermanent loss and smart contract vulnerabilities."
+      "id": "audit_process",
+      "keywords": [
+        "audit process",
+        "security review",
+        "vulnerability assessment",
+        "code review"
+      ],
+      "question": "What is the audit process?",
+      "answer": "The audit process involves comprehensive code review by security experts. Pashov Audit Group has conducted 150+ audits, discovering 129 critical and 243 high vulnerabilities, securing over $20 billion in TVL across protocols like Uniswap, Aave, and LayerZero."
     }
   ],
   "fallback_responses": [
-    "I'm not sure about that specific question. Could you try rephrasing it or select from our menu options?",
-    "That's a great question! While I don't have a specific answer, you might want to check our FAQ section or contact our team for detailed assistance.",
-    "I couldn't find an exact match for your question. Try using keywords like 'DeFi', 'NFT', 'blockchain', or 'staking' for better results."
-  ]
+    "I couldn't find a specific answer to your question. Please select an option from the menu or type 'help' for assistance.",
+    "That's an interesting question about Web3. For detailed information, please check our FAQ section or contact support.",
+    "I don't have information on that specific topic. Try asking about DeFi, smart contracts, or crypto trading, or contact @pashovkrum for expert assistance."
+  ],
+  "project_references": {
+    "defi": [
+      "Aave",
+      "Uniswap"
+    ],
+    "audit": [
+      "Sushi",
+      "Ethena"
+    ],
+    "cross_chain": [
+      "LayerZero"
+    ],
+    "stablecoin": [
+      "Ethena"
+    ],
+    "nft": [
+      "Sofamon"
+    ],
+    "dex": [
+      "Uniswap",
+      "Sushi"
+    ],
+    "lending": [
+      "Aave"
+    ],
+    "wallet": [
+      "Ambire"
+    ]
+  }
 }

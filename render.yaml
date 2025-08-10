@@ -2,8 +2,8 @@ services:
   - type: web
     name: web3-telegram-bot
     env: node
-    plan: free
-    buildCommand: npm install
+    plan: starter
+    buildCommand: npm ci --only=production
     startCommand: npm run webhook
     envVars:
       - key: NODE_ENV
@@ -15,7 +15,18 @@ services:
       - key: ADMIN_USER_IDS
         sync: false
       - key: WEBHOOK_URL
+        value: https://web3-telegram-bot.onrender.com
+      - key: PORT
+        value: 10000
+      - key: MORALIS_API_KEY
         sync: false
-      - key: ANALYTICS_API_KEY
+      - key: ETHERSCAN_API_KEY
         sync: false
-    autoDeploy: false
+      - key: BOT_NAME
+        value: Web3 Security Assistant
+      - key: RESPONSE_DELAY
+        value: 1000
+      - key: LOG_LEVEL
+        value: info
+    healthCheckPath: /health
+    autoDeploy: true

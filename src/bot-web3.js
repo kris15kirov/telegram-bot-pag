@@ -1,546 +1,655 @@
 const TelegramBot = require('node-telegram-bot-api');
 const config = require('./config/config');
-const {
-    mainKeyboard,
-    faqKeyboard,
-    urgentKeyboard,
-    mediaKeyboard,
-    auditKeyboard,
-    inlineQuickActions,
-    web3Keyboard
-} = require('./utils/keyboards');
-const MessageAnalyzer = require('./utils/messageAnalyzer');
+const KeyboardManager = require('./utils/keyboards');
 const FAQHandler = require('./handlers/faqHandler');
 const Web3Handler = require('./handlers/web3Handler');
 const AnalyticsHandler = require('./handlers/analyticsHandler');
+const logger = require('./utils/logger');
 
-// Initialize bot and handlers
-const bot = new TelegramBot(config.telegram.botToken, { polling: true });
-const messageAnalyzer = new MessageAnalyzer();
-const faqHandler = new FAQHandler();
-const web3Handler = new Web3Handler();
-const analyticsHandler = new AnalyticsHandler();
+class Web3TelegramBot {
+    constructor() {
+        this.bot = new TelegramBot(config.telegram.botToken, { polling: true });
+        this.keyboardManager = new KeyboardManager();
+        this.faqHandler = new FAQHandler();
+        this.web3Handler = new Web3Handler();
+        this.analyticsHandler = new AnalyticsHandler();
 
-// Store user sessions
-const userSessions = new Map();
+        this.setupEventHandlers();
+        logger.info('Web3 Telegram Bot initialized successfully');
+    }
 
-// Welcome message for Web3 Business Bot
-const WELCOME_MESSAGE = `
-🚀 **Welcome to Web3 Business Assistant!**
+    setupEventHandlers() {
+        // Handle /start command
+        this.bot.onText(/\/start/, this.handleStart.bind(this));
 
-I'm your intelligent Web3 assistant, ready to help with:
+        // Handle /help command
+        this.bot.onText(/\/help/, this.handleHelp.bind(this));
 
-🚨 **Urgent** - Critical issues and emergencies
-📺 **Media request** - Press inquiries and interviews  
-📊 **Audit request** - Audit services and compliance
-❓ **FAQ** - Web3 and blockchain questions
-🌐 **Web3** - Real-time crypto prices and market data
-📞 **Contact** - Get in touch with our team
+        // Handle FAQ commands
+        this.bot.onText(/\/addfaq(.+)/, this.handleAddFAQ.bind(this));
+        this.bot.onText(/\/listfaqs/, this.handleListFAQs.bind(this));
+        this.bot.onText(/\/searchfaq(.+)/, this.handleSearchFAQ.bind(this));
 
-Type a crypto symbol (like "BTC" or "ETH") for instant price data, or select a category from the menu! 👇
-`;
+        // Handle Web3 commands
+        this.bot.onText(/\/price (.+)/, this.handlePrice.bind(this));
+        this.bot.onText(/\/trending/, this.handleTrending.bind(this));
+        this.bot.onText(/\/gas/, this.handleGas.bind(this));
+        this.bot.onText(/\/checkbalance (.+)/, this.handleCheckBalance.bind(this));
+        this.bot.onText(/\/nfts (.+)/, this.handleNFTs.bind(this));
+        this.bot.onText(/\/uniswap/, this.handleUniswap.bind(this));
+        this.bot.onText(/\/aave/, this.handleAave.bind(this));
+        this.bot.onText(/\/layerzero/, this.handleLayerZero.bind(this));
+        this.bot.onText(/\/ethena/, this.handleEthena.bind(this));
+        this.bot.onText(/\/sushi/, this.handleSushi.bind(this));
 
-// Utility function to delay responses
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        // Handle analytics command
+        this.bot.onText(/\/stats/, this.handleStats.bind(this));
 
-// Start command
-bot.onText(/\/start/, async (msg) => {
-    const chatId = msg.chat.id;
-    const user = msg.from;
+        // Handle callback queries
+        this.bot.on('callback_query', this.handleCallbackQuery.bind(this));
 
-    // Initialize user session
-    userSessions.set(chatId, {
-        userId: user.id,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        username: user.username,
-        currentMenu: 'main',
-        lastActivity: new Date()
-    });
+        // Handle text messages
+        this.bot.on('message', this.handleMessage.bind(this));
 
-    // Log interaction
-    analyticsHandler.logInteraction(user, 'command', { command: 'start' });
+        // Handle errors
+        this.bot.on('error', this.handleError.bind(this));
+    }
 
-    console.log(`👤 New user started: ${user.first_name} ${user.last_name || ''} (@${user.username || 'no_username'}) - ID: ${user.id}`);
+    async handleStart(msg) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
 
-    await delay(config.bot.responseDelay);
+            const welcomeMessage = `Welcome to the Web3 Security Assistant, ${user.first_name}! 
 
-    await bot.sendMessage(chatId, WELCOME_MESSAGE, {
-        parse_mode: 'Markdown',
-        ...mainKeyboard
-    });
-});
+Trusted by leading protocols like Uniswap, Aave, and LayerZero, I'm here to answer your Web3 questions, provide real-time crypto data, or escalate urgent requests.
 
-// Help command
-bot.onText(/\/help/, async (msg) => {
-    const chatId = msg.chat.id;
-    const user = msg.from;
+How can I assist you today?`;
 
-    analyticsHandler.logInteraction(user, 'command', { command: 'help' });
+            await this.bot.sendMessage(chatId, welcomeMessage, this.keyboardManager.getMainKeyboard());
 
-    const helpMessage = `
-🆘 **Web3 Business Assistant Help**
+            // Log user interaction
+            await this.analyticsHandler.logUserInteraction(
+                user.id,
+                user,
+                'start_command',
+                '/start',
+                'welcome_message',
+                welcomeMessage
+            );
 
-**Basic Commands:**
-/start - Start over
-/help - Show this help
-/stats - Show bot statistics (admin only)
-/trending - Show trending cryptocurrencies
-/market - Show global market data
+            logger.info(`User ${user.id} started the bot`);
+        } catch (error) {
+            logger.error('Error handling start command:', error.message);
+            await this.sendErrorMessage(msg.chat.id);
+        }
+    }
 
-**Web3 Features:**
-• Type any crypto symbol for prices (BTC, ETH, SOL, etc.)
-• "trending" - See what's hot in crypto
-• "market" - Global crypto market overview
+    async handleHelp(msg) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
+
+            const helpMessage = `Welcome to the Web3 Assistant, powered by Pashov Audit Group (trusted by Uniswap, Aave, LayerZero).
+
+**Available Commands:**
+• /price <symbol> - Get real-time crypto prices (e.g., ETH, BTC)
+• /trending - Top trending tokens
+• /gas - Ethereum gas prices
+• /checkbalance <address> - Check wallet balances
+• /nfts <address> - View NFT holdings
+• /uniswap, /aave, /layerzero, /ethena, /sushi - Project information
+• /stats - View analytics (admin-only)
 
 **Quick Actions:**
-• Select a category from the menu
-• Type your question directly
-• For urgent cases: press "🚨 Urgent"
+Use the keyboard below for quick access to common features.
 
-**Supported Language:**
-🇬🇧 English with Web3 focus
+Select an option below or contact @pashovkrum for audit inquiries.`;
 
-If you need help, just ask! I understand Web3 and crypto terminology.
-`;
+            await this.bot.sendMessage(chatId, helpMessage, this.keyboardManager.getHelpKeyboard());
 
-    await bot.sendMessage(chatId, helpMessage, {
-        parse_mode: 'Markdown',
-        ...mainKeyboard
-    });
-});
-
-// Stats command (for admins)
-bot.onText(/\/stats/, async (msg) => {
-    const chatId = msg.chat.id;
-    const userId = msg.from.id;
-    const user = msg.from;
-
-    analyticsHandler.logInteraction(user, 'command', { command: 'stats' });
-
-    // Check if user is admin
-    if (!config.telegram.adminUserIds.includes(userId)) {
-        await bot.sendMessage(chatId, '❌ You do not have permission to access this command.');
-        return;
-    }
-
-    const statsReport = analyticsHandler.formatAnalyticsReport();
-    await bot.sendMessage(chatId, statsReport, { parse_mode: 'Markdown' });
-});
-
-// Trending command
-bot.onText(/\/trending/, async (msg) => {
-    const chatId = msg.chat.id;
-    const user = msg.from;
-
-    analyticsHandler.logInteraction(user, 'command', { command: 'trending' });
-
-    try {
-        const trending = await web3Handler.getTrendingCryptos();
-        const response = web3Handler.formatTrendingResponse(trending);
-
-        analyticsHandler.logInteraction(user, 'web3_query', { queryType: 'trending' });
-
-        await bot.sendMessage(chatId, response, {
-            parse_mode: 'Markdown',
-            ...web3Keyboard
-        });
-    } catch (error) {
-        analyticsHandler.logError(error, { command: 'trending', userId: user.id });
-        await bot.sendMessage(chatId, `❌ ${error.message}`, mainKeyboard);
-    }
-});
-
-// Market command
-bot.onText(/\/market/, async (msg) => {
-    const chatId = msg.chat.id;
-    const user = msg.from;
-
-    analyticsHandler.logInteraction(user, 'command', { command: 'market' });
-
-    try {
-        const marketData = await web3Handler.getMarketData();
-        const response = web3Handler.formatMarketResponse(marketData);
-
-        analyticsHandler.logInteraction(user, 'web3_query', { queryType: 'market' });
-
-        await bot.sendMessage(chatId, response, {
-            parse_mode: 'Markdown',
-            ...web3Keyboard
-        });
-    } catch (error) {
-        analyticsHandler.logError(error, { command: 'market', userId: user.id });
-        await bot.sendMessage(chatId, `❌ ${error.message}`, mainKeyboard);
-    }
-});
-
-// Handle text messages
-bot.on('message', async (msg) => {
-    const chatId = msg.chat.id;
-    const text = msg.text;
-    const user = msg.from;
-
-    // Skip if message is a command
-    if (text && text.startsWith('/')) return;
-
-    // Update user session
-    const session = userSessions.get(chatId) || {};
-    session.lastActivity = new Date();
-    userSessions.set(chatId, session);
-
-    console.log(`📨 Message from ${user.first_name}: ${text}`);
-
-    // Analyze message
-    const analysis = messageAnalyzer.analyzeMessage(text);
-
-    // Handle different types of messages
-    if (text) {
-        await handleMessage(chatId, text, user, analysis);
-    }
-});
-
-// Main message handler
-async function handleMessage(chatId, text, user, analysis) {
-    await delay(config.bot.responseDelay);
-
-    // Check for keyboard button actions first
-    if (await handleKeyboardAction(chatId, text, user, analysis)) {
-        return;
-    }
-
-    // Check for Web3 price queries
-    if (web3Handler.isPriceQuery(text)) {
-        await handlePriceQuery(chatId, text, user);
-        return;
-    }
-
-    // Check for Web3 keywords
-    if (await handleWeb3Keywords(chatId, text, user)) {
-        return;
-    }
-
-    // Check for FAQ queries
-    const faqMatch = faqHandler.findFAQResponse(text);
-    if (faqMatch) {
-        const response = faqHandler.formatFAQResponse(faqMatch);
-        await bot.sendMessage(chatId, response, {
-            parse_mode: 'Markdown',
-            ...mainKeyboard
-        });
-
-        analyticsHandler.logInteraction(user, 'faq_query', {
-            faqId: faqMatch.id,
-            question: faqMatch.question,
-            matchType: faqMatch.matchType
-        });
-        return;
-    }
-
-    // Handle general message with auto-forwarding logic
-    await handleGeneralMessage(chatId, text, user, analysis);
-}
-
-// Handle keyboard actions
-async function handleKeyboardAction(chatId, text, user, analysis) {
-    switch (text) {
-        case '🚨 Urgent':
-            await handleUrgentRequest(chatId, user);
-            return true;
-
-        case '📺 Media request':
-            await handleMediaRequest(chatId, user);
-            return true;
-
-        case '📊 Audit request':
-            await handleAuditRequest(chatId, user);
-            return true;
-
-        case '❓ FAQ':
-            await handleFAQRequest(chatId, user);
-            return true;
-
-        case '🌐 Web3':
-            await handleWeb3Menu(chatId, user);
-            return true;
-
-        case '📞 Contact':
-            await handleContactRequest(chatId);
-            return true;
-
-        case '🏠 Main Menu':
-        case '🔙 Back to Main':
-            await handleMainMenu(chatId);
-            return true;
-
-        // FAQ sub-menu
-        case '⏰ Working Hours':
-        case '📋 Services':
-        case '💰 Pricing':
-        case '🛠 Support':
-        case '📞 Contact Info':
-            await handleFAQSubMenu(chatId, text, user);
-            return true;
-
-        // Web3 sub-menu
-        case '📈 Live Prices':
-            await handleLivePrices(chatId, user);
-            return true;
-        case '🔥 Trending':
-            await handleTrendingCryptos(chatId, user);
-            return true;
-        case '🌍 Market Data':
-            await handleMarketData(chatId, user);
-            return true;
-
-        // Urgent sub-menu
-        case '🔥 Critical Issue':
-        case '⚡ High Priority':
-        case '📞 Request Callback':
-            await handleUrgentSubMenu(chatId, user, text);
-            return true;
-
-        // Media and Audit sub-menus
-        case '📰 Press Release':
-        case '🎤 Interview Request':
-        case '📸 Photo Request':
-        case '📺 Video Request':
-            await handleSpecificMediaRequest(chatId, user, text);
-            return true;
-
-        case '🏢 Financial Audit':
-        case '🔒 Security Audit':
-        case '📊 Compliance Audit':
-        case '🔍 Internal Audit':
-            await handleSpecificAuditRequest(chatId, user, text);
-            return true;
-
-        default:
-            return false;
-    }
-}
-
-// Handle price queries
-async function handlePriceQuery(chatId, text, user) {
-    try {
-        const symbol = web3Handler.extractSymbol(text);
-        const priceData = await web3Handler.getCryptoPrice(symbol);
-        const response = web3Handler.formatPriceResponse(priceData);
-
-        analyticsHandler.logInteraction(user, 'web3_query', {
-            queryType: 'price',
-            symbol: symbol.toUpperCase()
-        });
-
-        await bot.sendMessage(chatId, response, {
-            parse_mode: 'Markdown',
-            ...web3Keyboard
-        });
-    } catch (error) {
-        analyticsHandler.logError(error, { query: 'price', symbol: text, userId: user.id });
-        await bot.sendMessage(chatId, `❌ ${error.message}`, mainKeyboard);
-    }
-}
-
-// Handle Web3 keywords
-async function handleWeb3Keywords(chatId, text, user) {
-    const lowerText = text.toLowerCase();
-
-    if (lowerText.includes('trending') || lowerText.includes('hot crypto')) {
-        try {
-            const trending = await web3Handler.getTrendingCryptos();
-            const response = web3Handler.formatTrendingResponse(trending);
-
-            analyticsHandler.logInteraction(user, 'web3_query', { queryType: 'trending' });
-
-            await bot.sendMessage(chatId, response, {
-                parse_mode: 'Markdown',
-                ...web3Keyboard
-            });
-            return true;
+            await this.analyticsHandler.logUserInteraction(
+                user.id,
+                user,
+                'help_command',
+                '/help',
+                'help_message',
+                helpMessage
+            );
         } catch (error) {
-            analyticsHandler.logError(error, { query: 'trending', userId: user.id });
-            await bot.sendMessage(chatId, `❌ ${error.message}`, mainKeyboard);
-            return true;
+            logger.error('Error handling help command:', error.message);
+            await this.sendErrorMessage(msg.chat.id);
         }
     }
 
-    if (lowerText.includes('market') && (lowerText.includes('data') || lowerText.includes('cap'))) {
+    async handleMessage(msg) {
         try {
-            const marketData = await web3Handler.getMarketData();
-            const response = web3Handler.formatMarketResponse(marketData);
+            const chatId = msg.chat.id;
+            const user = msg.from;
+            const text = msg.text;
 
-            analyticsHandler.logInteraction(user, 'web3_query', { queryType: 'market' });
+            if (!text) return;
 
-            await bot.sendMessage(chatId, response, {
-                parse_mode: 'Markdown',
-                ...web3Keyboard
-            });
-            return true;
+            // Check if it's a keyboard button
+            const keyboardResponse = this.keyboardManager.getKeyboardResponseMessage(text);
+            if (keyboardResponse) {
+                await this.handleKeyboardButton(msg, text, keyboardResponse);
+                return;
+            }
+
+            // Check if it's a Web3 submenu button
+            const web3Response = this.keyboardManager.getWeb3SubmenuResponse(text);
+            if (web3Response) {
+                await this.handleWeb3Submenu(msg, text, web3Response);
+                return;
+            }
+
+            // Try to find FAQ match
+            const faqResult = await this.faqHandler.processUserQuestion(text, user.id);
+
+            if (faqResult.success) {
+                await this.bot.sendMessage(chatId, faqResult.answer);
+
+                // Log FAQ query
+                await this.analyticsHandler.logFAQQuery(
+                    user.id,
+                    text,
+                    faqResult.answer,
+                    faqResult.confidence,
+                    faqResult.matchType,
+                    faqResult.projectReference
+                );
+            } else {
+                await this.bot.sendMessage(chatId, faqResult.answer);
+            }
+
+            // Log user interaction
+            await this.analyticsHandler.logUserInteraction(
+                user.id,
+                user,
+                'text_message',
+                text,
+                'faq_response',
+                faqResult.answer,
+                faqResult.confidence,
+                faqResult.projectReference
+            );
+
         } catch (error) {
-            analyticsHandler.logError(error, { query: 'market', userId: user.id });
-            await bot.sendMessage(chatId, `❌ ${error.message}`, mainKeyboard);
-            return true;
+            logger.error('Error handling message:', error.message);
+            await this.sendErrorMessage(msg.chat.id);
         }
     }
 
-    return false;
-}
-
-// Handler functions
-async function handleUrgentRequest(chatId, user) {
-    const message = `
-🚨 **Urgent Request**
-
-Your request has been marked as urgent and will be processed immediately.
-
-Please describe your issue in detail or select a category:
-`;
-
-    await bot.sendMessage(chatId, message, {
-        parse_mode: 'Markdown',
-        ...urgentKeyboard
-    });
-
-    analyticsHandler.logInteraction(user, 'urgent', { action: 'menu_accessed' });
-
-    // Auto-forward to action group
-    if (config.telegram.actionGroupChatId) {
-        const forwardMessage = `🚨 **URGENT REQUEST INITIATED**\n\n👤 User: ${user.first_name} ${user.last_name || ''}\n🆔 ID: ${user.id}\n⏰ Time: ${new Date().toLocaleString('en-US')}\n\nUser accessed urgent menu.`;
-
+    async handleKeyboardButton(msg, buttonText, response) {
         try {
-            await bot.sendMessage(config.telegram.actionGroupChatId, forwardMessage, { parse_mode: 'Markdown' });
+            const chatId = msg.chat.id;
+            const user = msg.from;
+
+            // Check if message should be forwarded
+            if (['Urgent Request', 'Media Inquiry', 'Audit Request'].includes(buttonText)) {
+                await this.forwardMessage(msg, buttonText.toLowerCase().replace(' ', '_'));
+            }
+
+            await this.bot.sendMessage(chatId, response);
+
+            // Log interaction
+            await this.analyticsHandler.logUserInteraction(
+                user.id,
+                user,
+                'keyboard_button',
+                buttonText,
+                'button_response',
+                response
+            );
+
         } catch (error) {
-            analyticsHandler.logError(error, { action: 'forward_urgent', userId: user.id });
+            logger.error('Error handling keyboard button:', error.message);
+            await this.sendErrorMessage(msg.chat.id);
         }
+    }
+
+    async handleWeb3Submenu(msg, buttonText, response) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
+
+            if (buttonText === 'Back to Main') {
+                await this.bot.sendMessage(chatId, response, this.keyboardManager.getMainKeyboard());
+            } else {
+                await this.bot.sendMessage(chatId, response, this.keyboardManager.getWeb3Keyboard());
+            }
+
+            // Log interaction
+            await this.analyticsHandler.logUserInteraction(
+                user.id,
+                user,
+                'web3_submenu',
+                buttonText,
+                'submenu_response',
+                response
+            );
+
+        } catch (error) {
+            logger.error('Error handling Web3 submenu:', error.message);
+            await this.sendErrorMessage(msg.chat.id);
+        }
+    }
+
+    async handleCallbackQuery(callbackQuery) {
+        try {
+            const data = callbackQuery.data;
+            const chatId = callbackQuery.message.chat.id;
+            const user = callbackQuery.from;
+
+            switch (data) {
+                case 'project_uniswap':
+                case 'project_aave':
+                case 'project_layerzero':
+                case 'project_ethena':
+                case 'project_sushi':
+                    const project = data.replace('project_', '');
+                    const projectInfo = this.web3Handler.getProjectInfo(project);
+                    await this.bot.sendMessage(chatId, projectInfo.formatted);
+                    break;
+
+                case 'help_commands':
+                    await this.handleHelp({ chat: { id: chatId }, from: user });
+                    break;
+
+                case 'help_faq':
+                    const faqList = await this.faqHandler.listFAQs();
+                    await this.bot.sendMessage(chatId, faqList.formatted);
+                    break;
+
+                case 'help_web3':
+                    const web3Help = `Web3 Data Commands:\n\n• /price <symbol> - Get crypto prices\n• /trending - Trending tokens\n• /gas - Gas prices\n• /checkbalance <address> - Wallet balance\n• /nfts <address> - NFT holdings`;
+                    await this.bot.sendMessage(chatId, web3Help);
+                    break;
+
+                case 'help_contact':
+                    const contactInfo = `Contact Pashov Audit Group:\n\n• Telegram: @pashovkrum\n• Website: https://www.pashov.net\n• GitHub: https://github.com/pashov/audits`;
+                    await this.bot.sendMessage(chatId, contactInfo);
+                    break;
+
+                default:
+                    await this.bot.answerCallbackQuery(callbackQuery.id, { text: 'Unknown action' });
+            }
+
+            await this.bot.answerCallbackQuery(callbackQuery.id);
+
+        } catch (error) {
+            logger.error('Error handling callback query:', error.message);
+            await this.bot.answerCallbackQuery(callbackQuery.id, { text: 'Error processing request' });
+        }
+    }
+
+    async handleAddFAQ(msg) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
+
+            // Check if user is admin
+            if (!config.telegram.adminUserIds.includes(user.id)) {
+                await this.bot.sendMessage(chatId, 'Access denied. Admin privileges required.');
+                return;
+            }
+
+            const args = msg.text.replace('/addfaq', '').trim();
+            const result = await this.faqHandler.handleFAQCommand('addfaq', [args]);
+
+            if (result.success) {
+                await this.bot.sendMessage(chatId, result.message);
+
+                // Log admin action
+                await this.analyticsHandler.logAdminAction(
+                    user.id,
+                    'add_faq',
+                    { question: result.faq.question, answer: result.faq.answer }
+                );
+            } else {
+                await this.bot.sendMessage(chatId, result.message);
+            }
+
+        } catch (error) {
+            logger.error('Error handling add FAQ:', error.message);
+            await this.sendErrorMessage(msg.chat.id);
+        }
+    }
+
+    async handleListFAQs(msg) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
+
+            const result = await this.faqHandler.handleFAQCommand('listfaqs', []);
+            await this.bot.sendMessage(chatId, result.formatted);
+
+            await this.analyticsHandler.logUserInteraction(
+                user.id,
+                user,
+                'list_faqs',
+                '/listfaqs',
+                'faq_list',
+                result.formatted
+            );
+
+        } catch (error) {
+            logger.error('Error handling list FAQs:', error.message);
+            await this.sendErrorMessage(msg.chat.id);
+        }
+    }
+
+    async handleSearchFAQ(msg) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
+
+            const searchTerm = msg.text.replace('/searchfaq', '').trim();
+            const result = await this.faqHandler.handleFAQCommand('search', [searchTerm]);
+
+            await this.bot.sendMessage(chatId, result.message);
+
+            await this.analyticsHandler.logUserInteraction(
+                user.id,
+                user,
+                'search_faq',
+                searchTerm,
+                'search_result',
+                result.message
+            );
+
+        } catch (error) {
+            logger.error('Error handling search FAQ:', error.message);
+            await this.sendErrorMessage(msg.chat.id);
+        }
+    }
+
+    async handlePrice(msg) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
+            const symbol = msg.text.replace('/price', '').trim();
+
+            const startTime = Date.now();
+            const result = await this.web3Handler.handleWeb3Command('price', [symbol]);
+            const responseTime = Date.now() - startTime;
+
+            await this.bot.sendMessage(chatId, result.formatted);
+
+            // Log Web3 query
+            await this.analyticsHandler.logWeb3Query(
+                user.id,
+                'price',
+                { symbol },
+                result,
+                false,
+                responseTime
+            );
+
+        } catch (error) {
+            logger.error('Error handling price command:', error.message);
+            await this.bot.sendMessage(msg.chat.id, `Error: ${error.message}`);
+        }
+    }
+
+    async handleTrending(msg) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
+
+            const startTime = Date.now();
+            const result = await this.web3Handler.handleWeb3Command('trending', []);
+            const responseTime = Date.now() - startTime;
+
+            await this.bot.sendMessage(chatId, `${result.formatted}\n\n${result.reference}`);
+
+            await this.analyticsHandler.logWeb3Query(
+                user.id,
+                'trending',
+                {},
+                result,
+                false,
+                responseTime
+            );
+
+        } catch (error) {
+            logger.error('Error handling trending command:', error.message);
+            await this.bot.sendMessage(msg.chat.id, `Error: ${error.message}`);
+        }
+    }
+
+    async handleGas(msg) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
+
+            const startTime = Date.now();
+            const result = await this.web3Handler.handleWeb3Command('gas', []);
+            const responseTime = Date.now() - startTime;
+
+            await this.bot.sendMessage(chatId, result.formatted);
+
+            await this.analyticsHandler.logWeb3Query(
+                user.id,
+                'gas',
+                {},
+                result,
+                false,
+                responseTime
+            );
+
+        } catch (error) {
+            logger.error('Error handling gas command:', error.message);
+            await this.bot.sendMessage(msg.chat.id, `Error: ${error.message}`);
+        }
+    }
+
+    async handleCheckBalance(msg) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
+            const address = msg.text.replace('/checkbalance', '').trim();
+
+            const startTime = Date.now();
+            const result = await this.web3Handler.handleWeb3Command('checkbalance', [address]);
+            const responseTime = Date.now() - startTime;
+
+            await this.bot.sendMessage(chatId, result.formatted);
+
+            await this.analyticsHandler.logWeb3Query(
+                user.id,
+                'checkbalance',
+                { address },
+                result,
+                false,
+                responseTime
+            );
+
+        } catch (error) {
+            logger.error('Error handling check balance command:', error.message);
+            await this.bot.sendMessage(msg.chat.id, `Error: ${error.message}`);
+        }
+    }
+
+    async handleNFTs(msg) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
+            const address = msg.text.replace('/nfts', '').trim();
+
+            const startTime = Date.now();
+            const result = await this.web3Handler.handleWeb3Command('nfts', [address]);
+            const responseTime = Date.now() - startTime;
+
+            await this.bot.sendMessage(chatId, result.formatted);
+
+            await this.analyticsHandler.logWeb3Query(
+                user.id,
+                'nfts',
+                { address },
+                result,
+                false,
+                responseTime
+            );
+
+        } catch (error) {
+            logger.error('Error handling NFTs command:', error.message);
+            await this.bot.sendMessage(msg.chat.id, `Error: ${error.message}`);
+        }
+    }
+
+    async handleUniswap(msg) {
+        await this.handleProjectInfo(msg, 'uniswap');
+    }
+
+    async handleAave(msg) {
+        await this.handleProjectInfo(msg, 'aave');
+    }
+
+    async handleLayerZero(msg) {
+        await this.handleProjectInfo(msg, 'layerzero');
+    }
+
+    async handleEthena(msg) {
+        await this.handleProjectInfo(msg, 'ethena');
+    }
+
+    async handleSushi(msg) {
+        await this.handleProjectInfo(msg, 'sushi');
+    }
+
+    async handleProjectInfo(msg, project) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
+
+            const projectInfo = this.web3Handler.getProjectInfo(project);
+            await this.bot.sendMessage(chatId, projectInfo.formatted);
+
+            await this.analyticsHandler.logUserInteraction(
+                user.id,
+                user,
+                'project_info',
+                `/${project}`,
+                'project_response',
+                projectInfo.formatted
+            );
+
+        } catch (error) {
+            logger.error(`Error handling ${project} command:`, error.message);
+            await this.bot.sendMessage(msg.chat.id, `Error: ${error.message}`);
+        }
+    }
+
+    async handleStats(msg) {
+        try {
+            const chatId = msg.chat.id;
+            const user = msg.from;
+
+            // Check if user is admin
+            if (!config.telegram.adminUserIds.includes(user.id)) {
+                await this.bot.sendMessage(chatId, 'Access denied. Admin privileges required.');
+                return;
+            }
+
+            const stats = await this.analyticsHandler.getAnalyticsStats();
+            const formattedStats = await this.analyticsHandler.formatStatsForDisplay(stats);
+
+            await this.bot.sendMessage(chatId, formattedStats);
+
+            await this.analyticsHandler.logAdminAction(
+                user.id,
+                'view_stats',
+                { stats }
+            );
+
+        } catch (error) {
+            logger.error('Error handling stats command:', error.message);
+            await this.sendErrorMessage(msg.chat.id);
+        }
+    }
+
+    async forwardMessage(msg, reason) {
+        try {
+            if (!config.telegram.actionGroupChatId) {
+                logger.warn('Action group chat ID not configured, skipping message forwarding');
+                return;
+            }
+
+            const user = msg.from;
+            const forwardMessage = `🚨 ${reason.replace('_', ' ').toUpperCase()} REQUEST
+
+From: ${user.first_name} ${user.last_name || ''} (@${user.username || 'no_username'})
+User ID: ${user.id}
+Time: ${new Date().toLocaleString()}
+
+Message: ${msg.text}
+
+Forwarded to Pashov Audit Group (@pashovkrum), trusted by Sushi and Ethena.`;
+
+            await this.bot.sendMessage(config.telegram.actionGroupChatId, forwardMessage);
+
+            // Log forwarding
+            await this.analyticsHandler.logMessageForwarding(
+                user.id,
+                msg.text,
+                config.telegram.actionGroupChatId,
+                reason
+            );
+
+            logger.info(`Message forwarded for user ${user.id}, reason: ${reason}`);
+
+        } catch (error) {
+            logger.error('Error forwarding message:', error.message);
+        }
+    }
+
+    async handleError(error) {
+        logger.error('Bot error:', error.message);
+    }
+
+    async sendErrorMessage(chatId) {
+        try {
+            await this.bot.sendMessage(
+                chatId,
+                'I encountered an error processing your request. Please try again or contact support.',
+                this.keyboardManager.getMainKeyboard()
+            );
+        } catch (error) {
+            logger.error('Error sending error message:', error.message);
+        }
+    }
+
+    start() {
+        logger.info('Starting Web3 Telegram Bot...');
+        this.bot.startPolling();
+    }
+
+    stop() {
+        logger.info('Stopping Web3 Telegram Bot...');
+        this.bot.stopPolling();
+        this.analyticsHandler.close();
     }
 }
 
-async function handleMediaRequest(chatId, user) {
-    const message = `
-📺 **Media Request**
+// Start the bot if this file is run directly
+if (require.main === module) {
+    const bot = new Web3TelegramBot();
+    bot.start();
 
-Directing you to our PR department for media inquiries.
-
-Select the type of your request:
-`;
-
-    await bot.sendMessage(chatId, message, {
-        parse_mode: 'Markdown',
-        ...mediaKeyboard
+    // Graceful shutdown
+    process.on('SIGINT', () => {
+        logger.info('Received SIGINT, shutting down gracefully...');
+        bot.stop();
+        process.exit(0);
     });
 
-    analyticsHandler.logInteraction(user, 'media_request', { action: 'menu_accessed' });
-}
-
-async function handleAuditRequest(chatId, user) {
-    const message = `
-📊 **Audit Request**
-
-Connecting you with our audit specialist.
-
-Select the type of audit you're interested in:
-`;
-
-    await bot.sendMessage(chatId, message, {
-        parse_mode: 'Markdown',
-        ...auditKeyboard
-    });
-
-    analyticsHandler.logInteraction(user, 'audit_request', { action: 'menu_accessed' });
-}
-
-async function handleFAQRequest(chatId, user) {
-    const message = `
-❓ **Frequently Asked Questions**
-
-Browse our Web3 and blockchain FAQ, or ask your question directly:
-`;
-
-    await bot.sendMessage(chatId, message, {
-        parse_mode: 'Markdown',
-        ...faqKeyboard
-    });
-
-    analyticsHandler.logInteraction(user, 'faq_menu', { action: 'menu_accessed' });
-}
-
-async function handleWeb3Menu(chatId, user) {
-    const message = `
-🌐 **Web3 & Crypto Hub**
-
-Get real-time cryptocurrency data and market insights:
-`;
-
-    await bot.sendMessage(chatId, message, {
-        parse_mode: 'Markdown',
-        ...web3Keyboard
-    });
-
-    analyticsHandler.logInteraction(user, 'web3_menu', { action: 'menu_accessed' });
-}
-
-async function handleContactRequest(chatId) {
-    const contactMessage = `
-📞 **Contact Information**
-
-🏢 **Company:** Web3 Business Solutions
-📍 **Address:** 123 Blockchain Avenue, Crypto City, CC 10001
-
-📞 **Phone Numbers:**
-• Main: +1 (555) 123-4567
-• Emergency: +1 (555) 999-0000
-
-📧 **Email:**
-• General inquiries: info@web3business.com
-• Support: support@web3business.com
-• Media: press@web3business.com
-
-🌐 **Online:**
-• Website: www.web3business.com
-• Twitter: @Web3Business
-• Discord: discord.gg/web3business
-
-⏰ **Business Hours:**
-Monday - Friday: 9:00 AM - 6:00 PM EST
-Saturday - Sunday: Closed
-
-For emergencies outside business hours, use this bot! 🤖
-`;
-
-    await bot.sendMessage(chatId, contactMessage, {
-        parse_mode: 'Markdown',
-        ...mainKeyboard
+    process.on('SIGTERM', () => {
+        logger.info('Received SIGTERM, shutting down gracefully...');
+        bot.stop();
+        process.exit(0);
     });
 }
 
-async function handleMainMenu(chatId) {
-    await bot.sendMessage(chatId, '🏠 Main Menu\n\nSelect a category:', mainKeyboard);
-}
-
-// Continue in next part due to length...
-// [Additional handler functions would continue here]
-
-// Error handling
-bot.on('polling_error', (error) => {
-    console.error('❌ Polling error:', error.message);
-    analyticsHandler.logError(error, { type: 'polling_error' });
-});
-
-// Graceful shutdown
-process.on('SIGINT', () => {
-    console.log('\n🛑 Shutting down Web3 bot gracefully...');
-    analyticsHandler.saveAnalytics();
-    bot.stopPolling();
-    process.exit(0);
-});
-
-// Auto-save analytics periodically
-analyticsHandler.startAutoSave(30);
-
-// Start message
-console.log('🚀 Web3 Business Assistant Bot starting...');
-console.log(`📡 Bot name: ${config.bot.name}`);
-console.log(`🔗 Action group: ${config.telegram.actionGroupChatId ? 'Configured' : 'Not configured'}`);
-console.log('✅ Web3 Bot is running! Press Ctrl+C to stop.');
-
-module.exports = bot;
+module.exports = Web3TelegramBot;
