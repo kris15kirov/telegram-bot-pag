@@ -560,7 +560,7 @@ describe('Web3Handler', () => {
       expect(result.count).toBe(0);
     });
 
-    it('should handle project info commands', () => {
+    it('should handle project info commands', async () => {
       // Test getProjectInfo directly first
       const projectInfo = web3Handler.getProjectInfo('uniswap');
       expect(projectInfo.name).toBe('Uniswap');
@@ -568,7 +568,7 @@ describe('Web3Handler', () => {
       expect(projectInfo.audit).toContain('Pashov Audit Group');
 
       // Test through handleWeb3Command
-      const result = web3Handler.handleWeb3Command('uniswap', []);
+      const result = await web3Handler.handleWeb3Command('uniswap', []);
       expect(result.name).toBe('Uniswap');
       expect(result.description).toContain('decentralized exchange');
       expect(result.audit).toContain('Pashov Audit Group');
