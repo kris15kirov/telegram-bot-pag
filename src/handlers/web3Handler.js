@@ -17,9 +17,25 @@ class Web3Handler {
             const cached = this.cache.get(cacheKey);
             if (cached) return cached;
 
+            // Map common symbols to CoinGecko IDs
+            const tokenMapping = {
+                'eth': 'ethereum',
+                'btc': 'bitcoin',
+                'usdc': 'usd-coin',
+                'usdt': 'tether',
+                'aave': 'aave',
+                'uni': 'uniswap',
+                'sushi': 'sushi',
+                'matic': 'matic-network',
+                'link': 'chainlink',
+                'dai': 'dai'
+            };
+
+            const coinId = tokenMapping[symbol.toLowerCase()] || symbol.toLowerCase();
+
             const response = await axios.get(`${this.coingeckoBaseUrl}/simple/price`, {
                 params: {
-                    ids: symbol.toLowerCase(),
+                    ids: coinId,
                     vs_currencies: 'usd',
                     include_24hr_change: true,
                     include_market_cap: true
@@ -27,11 +43,11 @@ class Web3Handler {
                 timeout: 10000
             });
 
-            if (!response.data[symbol.toLowerCase()]) {
-                throw new Error('Token not found');
+            if (!response.data[coinId]) {
+                throw new Error(`Token ${symbol} not found. Try common symbols like ETH, BTC, USDC.`);
             }
 
-            const data = response.data[symbol.toLowerCase()];
+            const data = response.data[coinId];
             const price = data.usd;
             const change24h = data.usd_24h_change;
             const marketCap = data.usd_market_cap;
@@ -95,8 +111,18 @@ class Web3Handler {
 
     async getGasPrice() {
         try {
-            if (!this.etherscanApiKey) {
-                throw new Error('Etherscan API key not configured');
+            if (!this.etherscanApiKey || this.etherscanApiKey === 'your_etherscan_api_key_here') {
+                // Provide fallback gas price data when API key is not configured
+                const fallbackGasData = {
+                    safe: 20,
+                    standard: 25,
+                    fast: 30,
+                    fastest: 35,
+                    formatted: `Ethereum Gas Prices (Gwei) - Estimated:\n\n• Safe: 20 Gwei\n• Standard: 25 Gwei\n• Fast: 30 Gwei\n• Fastest: 35 Gwei\n\nNote: These are estimated values. For real-time data, configure Etherscan API key.\n\nNetwork activity monitored by Pashov Audit Group.`
+                };
+
+                logger.info('Using fallback gas price data (API key not configured)');
+                return fallbackGasData;
             }
 
             const cacheKey = 'gas_price';
@@ -137,8 +163,17 @@ class Web3Handler {
 
     async getWalletBalance(address) {
         try {
-            if (!this.moralisApiKey) {
-                throw new Error('Moralis API key not configured');
+            if (!this.moralisApiKey || this.moralisApiKey === 'your_moralis_api_key_here') {
+                // Provide fallback response when API key is not configured
+                const fallbackResponse = {
+                    address: address,
+                    balance: '0.0000',
+                    rawBalance: '0',
+                    formatted: `ETH Balance: 0.0000 ETH\n\nNote: This is a demo response. For real wallet data, configure Moralis API key.\n\nWallet security ensured by Ambire, audited by Pashov Audit Group.`
+                };
+
+                logger.info(`Using fallback wallet balance for ${address} (API key not configured)`);
+                return fallbackResponse;
             }
 
             const cacheKey = `balance_${address.toLowerCase()}`;
@@ -177,8 +212,17 @@ class Web3Handler {
 
     async getNFTs(address) {
         try {
-            if (!this.moralisApiKey) {
-                throw new Error('Moralis API key not configured');
+            if (!this.moralisApiKey || this.moralisApiKey === 'your_moralis_api_key_here') {
+                // Provide fallback response when API key is not configured
+                const fallbackResponse = {
+                    address: address,
+                    count: 0,
+                    nfts: [],
+                    formatted: `NFT Holdings: 0 NFTs\n\nNote: This is a demo response. For real NFT data, configure Moralis API key.\n\nNFT security validated by Pashov Audit Group.`
+                };
+
+                logger.info(`Using fallback NFT data for ${address} (API key not configured)`);
+                return fallbackResponse;
             }
 
             const cacheKey = `nfts_${address.toLowerCase()}`;

@@ -8,116 +8,63 @@ if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
 }
 
-// Custom format for console output
-const consoleFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.colorize(),
-  winston.format.printf(({ timestamp, level, message, ...meta }) => {
-    let log = `${timestamp} [${level}]: ${message}`;
-    if (Object.keys(meta).length > 0) {
-      log += ` ${JSON.stringify(meta)}`;
-    }
-    return log;
-  })
-);
+// Simple fallback logger
+const fallbackLogger = {
+  info: (message, meta) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [INFO] ${message}`, meta || '');
+  },
+  error: (message, meta) => {
+    const timestamp = new Date().toISOString();
+    console.error(`[${timestamp}] [ERROR] ${message}`, meta || '');
+  },
+  warn: (message, meta) => {
+    const timestamp = new Date().toISOString();
+    console.warn(`[${timestamp}] [WARN] ${message}`, meta || '');
+  },
+  debug: (message, meta) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [DEBUG] ${message}`, meta || '');
+  }
+};
 
-// Custom format for file output
-const fileFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.errors({ stack: true }),
-  winston.format.json()
-);
+// Try to create winston logger, fallback to simple logger if it fails
+let logger;
 
-// Create logger instance
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: fileFormat,
-  defaultMeta: { service: 'web3-telegram-bot' },
-  transports: [
-    // Error log file
-    new winston.transports.File({
-      filename: path.join(logsDir, 'error.log'),
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-      tailable: true
-    }),
+try {
+  // Create a simple winston logger
+  logger = winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.json()
+    ),
+    transports: [
+      new winston.transports.File({
+        filename: path.join(logsDir, 'combined.log')
+      }),
+      new winston.transports.File({
+        filename: path.join(logsDir, 'error.log'),
+        level: 'error'
+      })
+    ]
+  });
 
-    // Combined log file
-    new winston.transports.File({
-      filename: path.join(logsDir, 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-      tailable: true
-    }),
-
-    // Bot analytics log
-    new winston.transports.File({
-      filename: path.join(logsDir, 'bot-analytics.log'),
-      level: 'info',
-      maxsize: 5242880, // 5MB
-      maxFiles: 10,
-      tailable: true,
-      format: winston.format.combine(
-        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-        winston.format.printf(({ timestamp, level, message, ...meta }) => {
-          let log = `[${timestamp}] ${message}`;
-          if (Object.keys(meta).length > 0) {
-            log += ` ${JSON.stringify(meta)}`;
-          }
-          return log;
-        })
-      )
-    })
-  ]
-});
-
-// Add console transport for development
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: consoleFormat
-  }));
+  // Add console transport for development
+  if (process.env.NODE_ENV !== 'production') {
+    logger.add(new winston.transports.Console({
+      format: winston.format.simple()
+    }));
+  }
+} catch (error) {
+  console.error('Failed to initialize winston logger, using fallback:', error.message);
+  logger = fallbackLogger;
 }
 
-// Create specialized loggers
-const web3Logger = winston.createLogger({
-  level: 'info',
-  format: fileFormat,
-  defaultMeta: { service: 'web3-handler' },
-  transports: [
-    new winston.transports.File({
-      filename: path.join(logsDir, 'web3.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    })
-  ]
-});
-
-const faqLogger = winston.createLogger({
-  level: 'info',
-  format: fileFormat,
-  defaultMeta: { service: 'faq-handler' },
-  transports: [
-    new winston.transports.File({
-      filename: path.join(logsDir, 'faq.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    })
-  ]
-});
-
-const analyticsLogger = winston.createLogger({
-  level: 'info',
-  format: fileFormat,
-  defaultMeta: { service: 'analytics' },
-  transports: [
-    new winston.transports.File({
-      filename: path.join(logsDir, 'analytics.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
-    })
-  ]
-});
+// Create specialized loggers (simplified)
+const web3Logger = logger;
+const faqLogger = logger;
+const analyticsLogger = logger;
 
 // Helper functions for structured logging
 const loggers = {
@@ -260,19 +207,19 @@ const logCacheOperation = (operation, key, hit, duration) => {
   });
 };
 
-// Export all logging functions
-module.exports = {
-  logger,
-  loggers,
-  logAPICall,
-  createTimer,
-  logUserInteraction,
-  logError,
-  logWeb3Query,
-  logFAQQuery,
-  logAnalyticsEvent,
-  logRateLimit,
-  logSecurityEvent,
-  logDatabaseOperation,
-  logCacheOperation
-};
+// Export logger directly for backward compatibility
+module.exports = logger;
+
+// Also export all logging functions
+module.exports.loggers = loggers;
+module.exports.logAPICall = logAPICall;
+module.exports.createTimer = createTimer;
+module.exports.logUserInteraction = logUserInteraction;
+module.exports.logError = logError;
+module.exports.logWeb3Query = logWeb3Query;
+module.exports.logFAQQuery = logFAQQuery;
+module.exports.logAnalyticsEvent = logAnalyticsEvent;
+module.exports.logRateLimit = logRateLimit;
+module.exports.logSecurityEvent = logSecurityEvent;
+module.exports.logDatabaseOperation = logDatabaseOperation;
+module.exports.logCacheOperation = logCacheOperation;

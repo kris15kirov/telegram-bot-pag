@@ -262,9 +262,9 @@ describe('FAQHandler', () => {
       expect(result.message).toContain('FAQ added successfully');
     });
 
-        it('should handle listfaqs command', async () => {
+    it('should handle listfaqs command', async () => {
       const result = await faqHandler.handleFAQCommand('listfaqs', []);
-      
+
       expect(result.count).toBe(2);
       expect(result.formatted).toContain('Available FAQs');
     });
@@ -284,9 +284,9 @@ describe('FAQHandler', () => {
       expect(result.answer).toContain('DeFi');
     });
 
-        it('should handle questions with no matches', async () => {
+    it('should handle questions with no matches', async () => {
       const result = await faqHandler.processUserQuestion('completely unrelated', 123456);
-      
+
       expect(result).toBeDefined();
       expect(result.success).toBe(false);
       expect(result.answer).toBeDefined();

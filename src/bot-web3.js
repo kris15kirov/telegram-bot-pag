@@ -572,12 +572,23 @@ Select an option below or contact @pashovkrum for audit inquiries.`;
 
     async forwardMessage(msg, reason) {
         try {
-            if (!config.telegram.actionGroupChatId) {
-                logger.warn('Action group chat ID not configured, skipping message forwarding');
+            const user = msg.from;
+
+            if (!config.telegram.actionGroupChatId || config.telegram.actionGroupChatId === 'your_action_group_chat_id_here') {
+                // If no action group configured, just log the request
+                logger.info(`Urgent request from user ${user.id}: ${msg.text} (reason: ${reason})`);
+
+                // Send confirmation to user
+                const confirmationMessage = `✅ Your ${reason.replace('_', ' ')} request has been logged. 
+
+Since this is a development environment, your request has been recorded in our logs. For immediate assistance, please contact @pashovkrum directly.
+
+Pashov Audit Group - Trusted by Uniswap, Aave, and LayerZero.`;
+
+                await this.bot.sendMessage(msg.chat.id, confirmationMessage);
                 return;
             }
 
-            const user = msg.from;
             const forwardMessage = `🚨 ${reason.replace('_', ' ').toUpperCase()} REQUEST
 
 From: ${user.first_name} ${user.last_name || ''} (@${user.username || 'no_username'})
